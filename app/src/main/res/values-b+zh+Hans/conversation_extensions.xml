@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conversation_copy_local_link">复制本机对话链接</string>
+    <string name="conversation_local_link_copied">链接已复制。在 Eta 新对话中粘贴并发送，即可接续本机内容。</string>
+    <string name="conversation_local_link_unavailable">请在空白新对话中使用有效本机链接。源对话须存在且有完整回复；正在运行时请先等待完成。</string>
+    <string name="conversation_local_link_loaded">已在独立新对话中载入本机历史和角色，可继续聊天；原对话不变。</string>
+    <string name="voice_conversation_start">开始自动语音对话</string>
+    <string name="voice_conversation_stop">停止自动语音对话</string>
+    <string name="voice_conversation_listening">正在收听…</string>
+    <string name="voice_conversation_waiting">等待角色回复…</string>
+    <string name="voice_conversation_speaking">正在朗读…</string>
+    <string name="voice_conversation_configure">请配置千问实时或豆包识别及语音播报服务。清空草稿后开始。</string>
+    <string name="voice_conversation_no_reply">自动语音对话已停止：没有成功的新回复，请检查聊天模型或重试。</string>
+    <string name="voice_conversation_playback_stopped">朗读中断，自动语音对话已停止。</string>
+</resources>

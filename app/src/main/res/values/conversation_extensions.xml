@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="conversation_copy_local_link">Copy local conversation link</string>
+    <string name="conversation_local_link_copied">Link copied. Paste it into a new Eta chat and send to continue locally.</string>
+    <string name="conversation_local_link_unavailable">Use a valid local link in an empty chat. The source must exist and have a completed reply; wait if it is running.</string>
+    <string name="conversation_local_link_loaded">Local history and character loaded into an independent conversation. You can continue here.</string>
+    <string name="voice_conversation_start">Start voice conversation</string>
+    <string name="voice_conversation_stop">Stop voice conversation</string>
+    <string name="voice_conversation_listening">Listening…</string>
+    <string name="voice_conversation_waiting">Waiting for reply…</string>
+    <string name="voice_conversation_speaking">Reading reply…</string>
+    <string name="voice_conversation_configure">Configure Qwen realtime or Doubao recognition and a TTS service. Clear the draft before starting.</string>
+    <string name="voice_conversation_no_reply">Voice conversation stopped: no successful new reply. Check the chat model or try again.</string>
+    <string name="voice_conversation_playback_stopped">Reading interrupted. Voice conversation stopped.</string>
+</resources>

@@ -1,0 +1,10 @@
+# Current context
+Memory landing policy: preauthorized
+
+- Upstream baseline and synced origin/main: ffd972d63e36a2500bf58ef38483a1015be54ed9 (78 commits beyond the original fork).
+- Feature branch: feature/voice-conversation-links. Do not merge feature behavior into main without the user deciding to do so.
+- Direct speech input comes from upstream. Extensions add local-only conversation link continuation and an explicit foreground roleplay voice loop.
+- Final local build, Android Lint (0 errors), and 44 targeted tests passed. No real device audio tested.
+- Preserve ordinary text chat, existing manual dictation, ordinary background read-aloud, roleplay persistence, and permission policy. Do not change broad permissions to make voice work.
+- GitHub deploy-key push of main succeeded. SSH settings are repository-local; secrets live outside the repository and must never be copied into memory or artifacts.
+- Before continuing, read active-task.md and ../VOICE.md. Phone acceptance and original-signature production packaging remain separate follow-up work.

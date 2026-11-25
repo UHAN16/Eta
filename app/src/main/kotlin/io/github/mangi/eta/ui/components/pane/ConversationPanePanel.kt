@@ -118,6 +118,7 @@ internal fun ConversationPanePanel(
     onConversationTogglePin: (ConversationSummaryUi) -> Unit,
     onConversationRename: (ConversationSummaryUi) -> Unit,
     onConversationExport: (ConversationSummaryUi) -> Unit,
+    onConversationCopyLink: (ConversationSummaryUi) -> Unit = {},
     onConversationDelete: (ConversationSummaryUi) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenModelProviders: () -> Unit,
@@ -222,6 +223,7 @@ internal fun ConversationPanePanel(
                                             onTogglePin = { onConversationTogglePin(conversation) },
                                             onRename = { onConversationRename(conversation) },
                                             onExport = { onConversationExport(conversation) },
+                                            onCopyLink = { onConversationCopyLink(conversation) },
                                             onDelete = { onConversationDelete(conversation) },
                                         )
                                     }
@@ -442,6 +444,7 @@ private fun ConversationHistoryRow(
     onTogglePin: () -> Unit,
     onRename: () -> Unit,
     onExport: () -> Unit,
+    onCopyLink: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var showActionMenu by remember { mutableStateOf(false) }
@@ -611,11 +614,17 @@ private fun ConversationHistoryRow(
                 R.string.action_pin_conversation
             },
         )
+        val copyLinkText = stringResource(R.string.conversation_copy_local_link)
         val renameText = stringResource(R.string.action_rename)
         val exportText = stringResource(R.string.action_export)
         val deleteText = stringResource(R.string.action_delete)
         val overlayBackdrop = currentGlassOverlayBackdrop() ?: backdrop
         val menuContent: @Composable ColumnScope.() -> Unit = {
+            GlassPopupItem(
+                text = copyLinkText,
+                icon = io.github.mangi.eta.ui.components.chat.ChatActionIcons.Copy,
+                onClick = { showActionMenu = false; onCopyLink() },
+            )
             GlassPopupItem(
                 text = pinText,
                 icon = MiuixIcons.Glass.Pin,

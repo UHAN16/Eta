@@ -370,6 +370,7 @@ fun AgentAppRoot(
                     ),
                 )
             },
+            onConversationCopyLink = { conversation -> agentState.copyConversationLink(conversation.id) },
             onConversationDelete = { conversation ->
                 conversationDeleteTarget = conversation
             },

@@ -138,9 +138,10 @@ internal class AgentAppState(
     private val manuallyRenamedConversationIds = mutableSetOf<String>()
     private val titleGenerationJobs = mutableMapOf<String, Job>()
 
+    private var resolvingLocalLink by mutableStateOf(false)
     private var branchingConversationId by mutableStateOf<String?>(null)
     val isBranchingCurrentConversation: Boolean
-        get() = branchingConversationId != null && branchingConversationId == selectedConversationId
+        get() = resolvingLocalLink || (branchingConversationId != null && branchingConversationId == selectedConversationId)
 
     var isLoadingConversation by mutableStateOf(false)
         private set
@@ -1216,8 +1217,92 @@ internal class AgentAppState(
         persistConversations()
     }
 
+    fun copyConversationLink(conversationId: String) {
+        val link = runCatching { LocalConversationLink.encode(conversationId) }.getOrNull()
+        if (link == null || conversationId !in conversationsById) {
+            Toast.makeText(appContext, R.string.conversation_local_link_unavailable, Toast.LENGTH_LONG).show()
+            return
+        }
+        val clipboard = appContext.getSystemService(android.content.ClipboardManager::class.java)
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Eta", link))
+        Toast.makeText(appContext, R.string.conversation_local_link_copied, Toast.LENGTH_LONG).show()
+    }
+
+    /** Explicit paste in an empty chat forks a persisted, settled local session. No network lookup. */
+    private fun continueFromLocalLink(text: String) {
+        val request = LocalConversationLink.parse(text)
+        if (request == null || request.conversationId !in conversationsById ||
+            homeState.messages.isNotEmpty() || homeState.history.isNotEmpty() || homeState.roleplay != null ||
+            homeState.pendingImages.isNotEmpty() || homeState.pendingFileReferences.isNotEmpty() ||
+            persistencePaused || branchingConversationId != null || resolvingLocalLink ||
+            runStore.activeRunId(request.conversationId) != null ||
+            request.conversationId in pendingConversationDeletes ||
+            conversationsById[request.conversationId]?.let { it.isStreaming || it.isCompacting || it.roleplayMessages.pendingRewrites.isNotEmpty() } == true) {
+            Toast.makeText(appContext, R.string.conversation_local_link_unavailable, Toast.LENGTH_LONG).show()
+            updateCurrentConversation(homeState.copy(input = text, inputSyncVersion = homeState.inputSyncVersion + 1), updateTimestamp = false)
+            return
+        }
+        val sourceId = request.conversationId
+        val selectionVersion = conversationSelectionVersion
+        val destinationId = selectedConversationId
+        val branchId = newConversationId()
+        val title = appContext.getString(R.string.conversation_branch_title,
+            conversationTitles[sourceId].orEmpty().ifBlank { appContext.getString(R.string.conversation_unnamed) })
+        resolvingLocalLink = true
+        // Keep the submitted reference recoverable on errors or if navigation changes during the IO work.
+        updateCurrentConversation(homeState.copy(input = text, inputSyncVersion = homeState.inputSyncVersion + 1), updateTimestamp = false)
+        val saved = persistConversations()
+        scope.launch {
+            try {
+                check(saved.await())
+                withContext(NonCancellable) {
+                    val now = System.currentTimeMillis()
+                    val created = synchronized(persistenceLock) {
+                        check(!persistencePaused)
+                        val previous = persistenceJob
+                        val persistence = conversationPersistence
+                        async(Dispatchers.IO) {
+                            previous?.join()
+                            val outline = io.github.mangi.eta.data.db.EtaDatabase.get(appContext)
+                                .conversationDao().branchMessages(sourceId)
+                            val eligible = io.github.mangi.eta.data.repository.ConversationBranchBoundary.eligibleMessageIds(outline)
+                            val target = outline.lastOrNull { it.id in eligible }?.id
+                                ?: throw ConversationBranchUnavailable()
+                            // Never silently discard an unfinished or failed last turn.
+                            val targetIndex = outline.indexOfLast { it.id == target }
+                            if (outline.drop(targetIndex + 1).any {
+                                it.type != "tool_summary" && !(it.type == "system_notice" && it.noticeCode == "context_compaction")
+                            }) throw ConversationBranchUnavailable()
+                            persistence.branch(appContext, sourceId, target, branchId, title, now)
+                        }.also { persistenceJob = it }
+                    }.await()
+                    withContext(Dispatchers.Main.immediate) {
+                        conversationTitles = conversationTitles + (branchId to title)
+                        conversationUpdatedAt = conversationUpdatedAt + (branchId to now)
+                        updateConversation(branchId, created.copy(
+                            input = request.draft, inputSyncVersion = created.inputSyncVersion + 1,
+                        ), updateTimestamp = false)
+                        refreshConversationSummaries()
+                        if (selectedConversationId == destinationId && conversationSelectionVersion == selectionVersion) {
+                            selectConversation(branchId)
+                            Toast.makeText(appContext, R.string.conversation_local_link_loaded, Toast.LENGTH_LONG).show()
+                        }
+                        persistConversations()
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AndroidAgentLogger.error("Local conversation reference failed: type=${failure.safeLogType()}")
+                Toast.makeText(appContext, R.string.conversation_local_link_unavailable, Toast.LENGTH_LONG).show()
+            } finally {
+                resolvingLocalLink = false
+            }
+        }
+    }
+
     fun branchConversation(conversationId: String, messageId: String, draftText: String = homeState.input) {
-        if (selectedConversationId != conversationId || branchingConversationId != null || persistencePaused ||
+        if (selectedConversationId != conversationId || resolvingLocalLink || branchingConversationId != null || persistencePaused ||
             !homeState.isConversationLoaded || homeState.isStreaming || homeState.isCompacting ||
             homeState.messageEdit != null || homeState.roleplayMessages.pendingRewrites.isNotEmpty() ||
             runStore.activeRunId(conversationId) != null || conversationId in pendingConversationDeletes) return
@@ -1501,7 +1586,12 @@ internal class AgentAppState(
     ) {
         if (!homeState.isConversationLoaded || homeState.isCompacting ||
             selectedConversationId in pendingConversationDeletes) return
+        if (resolvingLocalLink) return
         val prompt = (submittedText ?: homeState.input).trim()
+        if (LocalConversationLink.containsLink(prompt)) {
+            continueFromLocalLink(prompt)
+            return
+        }
         val pendingImages = homeState.pendingImages
         val pendingFileReferences = homeState.pendingFileReferences
         if (prompt.isBlank() && pendingImages.isEmpty() && pendingFileReferences.isEmpty()) {

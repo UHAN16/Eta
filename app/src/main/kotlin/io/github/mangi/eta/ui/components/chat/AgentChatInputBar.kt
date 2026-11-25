@@ -211,7 +211,8 @@ internal fun AgentChatInputBar(
     LaunchedEffect(isHoldingSpeech) {
         if (!isHoldingSpeech) holdCancelling = false
     }
-    LaunchedEffect(isEditingMessage, recognitionEnabled) { dictation.cancel() }
+    val voiceConversationActive = io.github.mangi.eta.ui.components.LocalVoiceConversationActive.current
+    LaunchedEffect(isEditingMessage, recognitionEnabled, voiceConversationActive) { dictation.cancel() }
     var wasEditingMessage by remember { mutableStateOf(isEditingMessage) }
     var syncedVersion by remember { mutableIntStateOf(inputSyncVersion) }
     val canSend = textFieldState.text.isNotBlank() ||
@@ -237,6 +238,8 @@ internal fun AgentChatInputBar(
         modifier = modifier
             .fillMaxWidth(),
     ) {
+        io.github.mangi.eta.ui.components.LocalVoiceConversationBar.current?.invoke(!canSend && !dictationState.active)
+        if (voiceConversationActive) return@Column
         if (recognitionEnabled) SpeechInputFeedback(dictation, holdCancelling = holdCancelling)
         AnimatedVisibility(
             visible = queuedMessages.isNotEmpty(),

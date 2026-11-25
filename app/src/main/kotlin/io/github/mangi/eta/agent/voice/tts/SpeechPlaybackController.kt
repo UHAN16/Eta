@@ -51,7 +51,7 @@ internal class SpeechPlaybackController(
     private var lease: SpeechAudioLease? = null
     private var playbackActive = false
 
-    fun speak(messageId: String, text: String, settings: SpeechSettings? = null, credentials: SpeechCredentials? = null) {
+    fun speak(messageId: String, text: String, settings: SpeechSettings? = null, credentials: SpeechCredentials? = null, onCompleted: (() -> Unit)? = null) {
         stop()
         val session = generation
         mutableState.value = SpeechPlaybackState(messageId, loading = true)
@@ -85,7 +85,10 @@ internal class SpeechPlaybackController(
                 }
                 player.finish()
                 withTimeout(180_000) { while (!player.drained()) delay(20) }
-                if (session == generation) stop()
+                if (session == generation) {
+                    stop()
+                    onCompleted?.invoke()
+                }
             } catch (error: Exception) {
                 if (error is CancellationException && error !is kotlinx.coroutines.TimeoutCancellationException) throw error
                 if (session == generation) {

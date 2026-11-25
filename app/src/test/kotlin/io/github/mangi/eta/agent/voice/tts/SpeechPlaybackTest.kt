@@ -41,6 +41,41 @@ class SpeechPlaybackTest {
     )
     @After fun close() { playback.stop(); scope.cancel() }
 
+    @Test fun completionCallbackRunsOnlyAfterSuccessfulDrain() {
+        var completed = 0
+        val output = FakeOutput()
+        val controller = SpeechPlaybackController(context, scope,
+            streamSynthesize = null,
+            synthesize = { _, _, _, audio -> audio(byteArrayOf(1, 2)) },
+            createOutput = { output },
+        )
+        try {
+            controller.speak("complete", "完整回答", SpeechSettings(tts = TtsProvider.QWEN),
+                SpeechCredentials(qwenTts = "test-key"), onCompleted = {
+                    assertTrue(output.finished)
+                    assertTrue(output.closed)
+                    completed++
+                })
+            val deadline = System.nanoTime() + 3_000_000_000
+            while (completed == 0 && System.nanoTime() < deadline) {
+                shadowOf(Looper.getMainLooper()).idle()
+                Thread.sleep(1)
+            }
+            assertEquals(1, completed)
+            controller.stop()
+            assertEquals(1, completed)
+        } finally { controller.stop() }
+    }
+
+    @Test fun cancelledPlaybackNeverSignalsSuccessfulCompletion() {
+        var completed = false
+        playback.speak("cancelled", "取消回答", SpeechSettings(tts = TtsProvider.QWEN),
+            SpeechCredentials(qwenTts = "test-key"), onCompleted = { completed = true })
+        playback.stop()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(completed)
+    }
+
     private fun start(id: String) {
         playback.speak(id, "回答正文", SpeechSettings(tts = TtsProvider.QWEN), SpeechCredentials(qwenTts = "test-key"))
         val deadline = System.nanoTime() + 3_000_000_000

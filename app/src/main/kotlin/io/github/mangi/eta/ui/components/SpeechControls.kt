@@ -761,7 +761,8 @@ internal val LocalSpeechPlaybackEnabled = compositionLocalOf { false }
 internal fun SpeechAutoReadAloud(messages: List<AgentChatMessageUi>, isStreaming: Boolean) {
     val controller = LocalSpeechPlayback.current ?: return
     val settings by remember { SpeechSettingsRepository.settingsFlow() }.collectAsStateWithLifecycle(initialValue = null)
-    val enabled = settings?.let { it.chatAutoSpeak && it.tts != TtsProvider.NONE } == true
+    val enabled = !LocalVoiceConversationActive.current &&
+        settings?.let { it.chatAutoSpeak && it.tts != TtsProvider.NONE } == true
     var watchedId by remember { mutableStateOf<String?>(null) }
     val currentMessages by rememberUpdatedState(messages)
     LaunchedEffect(messages) {
