@@ -248,7 +248,9 @@ internal fun AgentChatBody(
     SpeechPlaybackHost {
         io.github.mangi.eta.ui.components.RoleplayVoiceConversationHost(
             messages = messages, isStreaming = isStreaming,
-            blocked = isDrawerOpen || isCompacting || isBranching || messageEdit != null || queuedMessages.isNotEmpty(),
+            blocked = isDrawerOpen || isCompacting || isBranching || messageEdit != null,
+            canStart = queuedMessages.isEmpty(),
+            onStopResponse = onStop,
             onSubmit = { text -> keepBottomAnchored = true; onSubmit(text) },
         ) {
         SpeechAutoReadAloud(messages = messages, isStreaming = isStreaming)

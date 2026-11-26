@@ -13,3 +13,8 @@ Memory landing policy: preauthorized
 - Separate local branch feature/online-upgrade adds one-click verified download and user-confirmed Android install without editing chat, voice, or local conversation links.
 - Read [the online upgrade task](tasks/online-upgrade/active-task.md) and [release/usage requirements](../ONLINE_UPDATE.md) before changing this flow.
 - Default channel UHAN16/Eta has no stable release yet; never silently switch to upstream or permit cross-signature installation. Device OTA remains untested.
+
+## Voice call and auto-read
+- Local branch feature/voice-call extends a5e1b8ed (online upgrade) with foreground conversational audio. See [voice call task](tasks/voice-call/active-task.md) and [usage](../VOICE.md).
+- Preserve ordinary push-to-talk, manual/background read-aloud, roleplay storage, and OTA. Only the explicit call audio pair can overlap; ASR and TTS are still the configured services.
+- Build, lint and 88 targeted tests passed; no real phone was connected. Do not claim hands-free echo performance on any particular device without testing.

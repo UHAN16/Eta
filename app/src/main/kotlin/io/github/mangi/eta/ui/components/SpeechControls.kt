@@ -93,9 +93,6 @@ import io.github.mangi.eta.data.model.TtsProvider
 import io.github.mangi.eta.data.repository.SpeechSettingsRepository
 import io.github.mangi.eta.ui.MainActivity
 import io.github.mangi.eta.ui.model.AgentChatMessageUi
-import io.github.mangi.eta.ui.model.AgentMessageUi
-import io.github.mangi.eta.ui.model.SystemNoticeCode
-import io.github.mangi.eta.ui.model.SystemNoticeMessageUi
 import io.github.mangi.eta.ui.components.chat.AnswerActionButton
 import io.github.mangi.eta.ui.components.chat.ChatActionIcons
 import io.github.mangi.eta.ui.components.StatusError
@@ -753,38 +750,19 @@ private fun SpeechFeedbackAction(text: String, primary: Boolean = false, onClick
 internal val LocalSpeechPlayback = staticCompositionLocalOf<SpeechPlaybackController?> { null }
 internal val LocalSpeechPlaybackEnabled = compositionLocalOf { false }
 
-/**
- * 聊天页自动朗读：一轮回答在本页流式生成并正常结束后，朗读这一轮的最终回答。
- * 只认在本页看到过流式生成的回答，切换会话、打开历史或停止、失败的回合都不会补读。
- */
+/** 只读本页新完成的成功回答；不要求 Compose 恰好显示过流式占位。 */
 @Composable
 internal fun SpeechAutoReadAloud(messages: List<AgentChatMessageUi>, isStreaming: Boolean) {
     val controller = LocalSpeechPlayback.current ?: return
     val settings by remember { SpeechSettingsRepository.settingsFlow() }.collectAsStateWithLifecycle(initialValue = null)
     val enabled = !LocalVoiceConversationActive.current &&
         settings?.let { it.chatAutoSpeak && it.tts != TtsProvider.NONE } == true
-    var watchedId by remember { mutableStateOf<String?>(null) }
-    val currentMessages by rememberUpdatedState(messages)
-    LaunchedEffect(messages) {
-        messages.lastOrNull { it is AgentMessageUi && it.isStreaming }?.let { watchedId = it.id }
-        // 被观察的回答不在当前列表里，说明已经切到别的会话。
-        if (watchedId != null && messages.none { it.id == watchedId }) watchedId = null
-    }
-    LaunchedEffect(isStreaming) {
-        if (isStreaming) return@LaunchedEffect
-        val watched = watchedId ?: return@LaunchedEffect
-        watchedId = null
-        if (!enabled) return@LaunchedEffect
-        val list = currentMessages
-        if (list.none { it.id == watched }) return@LaunchedEffect
-        val answerIndex = list.indexOfLast { it is AgentMessageUi }
-        val answer = list.getOrNull(answerIndex) as? AgentMessageUi ?: return@LaunchedEffect
-        val interrupted = list.drop(answerIndex + 1).any {
-            it is SystemNoticeMessageUi && it.code in setOf(SystemNoticeCode.Stopped, SystemNoticeCode.RuntimeFailed)
+    val tracker = remember { ChatAutoReadTracker(messages.mapTo(mutableSetOf()) { it.id }) }
+    LaunchedEffect(messages, isStreaming, enabled) {
+        tracker.update(messages, isStreaming)?.takeIf { enabled }?.let { answer ->
+            controller.speak(answer.id, answer.content)
         }
-        if (!interrupted && answer.content.isNotBlank()) controller.speak(answer.id, answer.content)
     }
-    // 关闭自动朗读视同“别再读了”，正在进行的朗读一并停止。
     var wasEnabled by remember { mutableStateOf(enabled) }
     LaunchedEffect(enabled) {
         if (wasEnabled && !enabled) controller.stop()

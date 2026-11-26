@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
 import io.github.mangi.eta.R
 import io.github.mangi.eta.core.AppStrings
 import java.io.ByteArrayOutputStream
@@ -18,15 +19,18 @@ import kotlinx.coroutines.withContext
 
 internal interface SpeechAudioCapture {
     val frames: ReceiveChannel<ByteArray>
+    val echoCancellationEnabled: Boolean get() = false
     suspend fun record(onReady: () -> Unit, onLevel: (Float) -> Unit)
     fun finish()
     fun cancel()
 }
 
-internal class SpeechRecorder : SpeechAudioCapture {
+internal class SpeechRecorder(private val conversation: Boolean = false) : SpeechAudioCapture {
     override val frames = Channel<ByteArray>(10)
     private val finishing = AtomicBoolean(false)
     @Volatile private var recorder: AudioRecord? = null
+    @Volatile override var echoCancellationEnabled = false
+        private set
 
     @SuppressLint("MissingPermission")
     override suspend fun record(onReady: () -> Unit, onLevel: (Float) -> Unit) = withContext(Dispatchers.IO) {
@@ -37,9 +41,12 @@ internal class SpeechRecorder : SpeechAudioCapture {
                 AppStrings.get(R.string.voice_i18n_recorder_format_unsupported, "设备不支持语音录音格式"),
             )
         }
-        val audio = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, RATE,
+        val source = if (conversation) MediaRecorder.AudioSource.VOICE_COMMUNICATION
+            else MediaRecorder.AudioSource.VOICE_RECOGNITION
+        val audio = AudioRecord(source, RATE,
             AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minimum, FRAME_BYTES * 2))
         recorder = audio
+        var echoCanceler: AcousticEchoCanceler? = null
         try {
             if (audio.state != AudioRecord.STATE_INITIALIZED) {
                 throw SpeechFailure(
@@ -48,6 +55,12 @@ internal class SpeechRecorder : SpeechAudioCapture {
                 )
             }
             if (finishing.get()) return@withContext
+            if (conversation && AcousticEchoCanceler.isAvailable()) {
+                echoCanceler = runCatching { AcousticEchoCanceler.create(audio.audioSessionId) }.getOrNull()
+                echoCancellationEnabled = runCatching {
+                    echoCanceler?.let { it.enabled = true; it.enabled } == true
+                }.getOrDefault(false)
+            }
             audio.startRecording()
             if (audio.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
                 throw SpeechFailure(
@@ -87,6 +100,8 @@ internal class SpeechRecorder : SpeechAudioCapture {
         } finally {
             finishing.set(true)
             recorder = null
+            echoCancellationEnabled = false
+            runCatching { echoCanceler?.release() }
             audio.release()
             frames.close()
         }

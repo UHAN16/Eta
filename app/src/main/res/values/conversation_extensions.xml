@@ -4,12 +4,16 @@
     <string name="conversation_local_link_copied">Link copied. Paste it into a new Eta chat and send to continue locally.</string>
     <string name="conversation_local_link_unavailable">Use a valid local link in an empty chat. The source must exist and have a completed reply; wait if it is running.</string>
     <string name="conversation_local_link_loaded">Local history and character loaded into an independent conversation. You can continue here.</string>
-    <string name="voice_conversation_start">Start voice conversation</string>
-    <string name="voice_conversation_stop">Stop voice conversation</string>
-    <string name="voice_conversation_listening">Listening…</string>
-    <string name="voice_conversation_waiting">Waiting for reply…</string>
-    <string name="voice_conversation_speaking">Reading reply…</string>
-    <string name="voice_conversation_configure">Configure Qwen realtime or Doubao recognition and a TTS service. Clear the draft before starting.</string>
-    <string name="voice_conversation_no_reply">Voice conversation stopped: no successful new reply. Check the chat model or try again.</string>
-    <string name="voice_conversation_playback_stopped">Reading interrupted. Voice conversation stopped.</string>
+    <string name="voice_conversation_start">Start voice call</string>
+    <string name="voice_conversation_stop">End voice call</string>
+    <string name="voice_conversation_listening">Listening — pause to send</string>
+    <string name="voice_conversation_waiting">Waiting for reply — speak to interrupt</string>
+    <string name="voice_conversation_speaking">Reading reply — speak to interrupt</string>
+    <string name="voice_conversation_configure">Enable speech recognition in Voice settings. Clear the draft before calling.</string>
+    <string name="voice_conversation_no_reply">No new reply. You can keep speaking.</string>
+    <string name="voice_call_interrupt">Interrupt reply</string>
+    <string name="voice_call_clear_draft">Clear the unsent draft or attachments to start the call.</string>
+    <string name="voice_call_recognizing">Transcribing — sends automatically</string>
+    <string name="voice_call_no_tts">No speech playback service configured. Replies will be shown as text.</string>
+    <string name="voice_call_tts_failed">Could not read the reply: %1$s. You can keep speaking.</string>
 </resources>

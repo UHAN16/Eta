@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import io.github.mangi.eta.agent.voice.audio.SpeechAudioLease
 import io.github.mangi.eta.agent.voice.audio.SpeechErrorCode
+import io.github.mangi.eta.agent.voice.audio.SpeechDuplexSession
 import io.github.mangi.eta.agent.voice.audio.SpeechFailure
 import io.github.mangi.eta.agent.voice.audio.SpeechPcmOutput
 import io.github.mangi.eta.agent.voice.audio.SpeechSegmentFade
@@ -38,6 +39,7 @@ internal class SpeechPlaybackController(
     private val beforePlayback: () -> Unit = {},
     private val interruptOnScreenOff: Boolean = true,
     private val afterPlayback: () -> Unit = {},
+    private val call: SpeechDuplexSession? = null,
     private val synthesize: suspend (SpeechSettings, SpeechCredentials, String, (ByteArray) -> Unit) -> Unit = ::synthesizeSpeech,
     /** 整篇单会话流式合成；为 null 时只用逐段请求。 */
     private val streamSynthesize: (suspend (SpeechSettings, SpeechCredentials, List<String>, (ByteArray) -> Unit) -> Unit)? = ::streamSpeech,
@@ -57,7 +59,8 @@ internal class SpeechPlaybackController(
         mutableState.value = SpeechPlaybackState(messageId, loading = true)
         job = scope.launch(Dispatchers.Main.immediate) {
             try {
-                lease = SpeechAudioLease(context, interruptOnScreenOff) { stop() }.also { it.acquire(playback = false) }
+                lease = SpeechAudioLease(context, interruptOnScreenOff, call = call) { stop() }
+                    .also { it.acquire(playback = false) }
                 val rawConfig = settings ?: SpeechSettingsRepository.settings()
                 val rawSecrets = credentials ?: SpeechSettingsRepository.credentials(context)
                 val (config, secrets) = SpeechSettingsRepository.resolveDeepSeekFallback(rawConfig, rawSecrets)

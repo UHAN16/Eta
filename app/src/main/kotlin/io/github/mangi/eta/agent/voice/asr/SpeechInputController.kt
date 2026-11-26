@@ -1,6 +1,7 @@
 package io.github.mangi.eta.agent.voice.asr
 
 import android.content.Context
+import android.os.SystemClock
 import io.github.mangi.eta.R
 import io.github.mangi.eta.core.AndroidAgentLogger
 import io.github.mangi.eta.core.AppStrings
@@ -23,6 +24,7 @@ import io.github.mangi.eta.agent.voice.ui.EtaSpeechPhase
 import io.github.mangi.eta.agent.voice.audio.SpeechAudioCapture
 import io.github.mangi.eta.agent.voice.audio.SpeechAudioLease
 import io.github.mangi.eta.agent.voice.audio.SpeechErrorCode
+import io.github.mangi.eta.agent.voice.audio.SpeechDuplexSession
 import io.github.mangi.eta.agent.voice.audio.SpeechFailure
 import io.github.mangi.eta.agent.voice.audio.SpeechRecorder
 import io.github.mangi.eta.agent.voice.audio.collectSpeechAudio
@@ -37,6 +39,7 @@ internal data class SpeechInputState(
     val error: String? = null,
     val configureAvailable: Boolean = false,
     val holdToTalk: Boolean = false,
+    val errorCode: SpeechErrorCode? = null,
 ) {
     val active: Boolean get() = phase != EtaSpeechPhase.IDLE
 }
@@ -48,7 +51,10 @@ internal class SpeechInputController(
     private val beforeCapture: () -> Unit = {},
     private val afterCapture: () -> Unit = {},
     private val refiner: SpeechTranscriptRefiner = SpeechTranscriptRefiner(),
-    private val createRecorder: () -> SpeechAudioCapture = ::SpeechRecorder,
+    private val call: SpeechDuplexSession? = null,
+    private val onCallSpeechStarted: (Boolean) -> Unit = {},
+    private val onCallAudioInterrupted: () -> Unit = {},
+    private val createRecorder: () -> SpeechAudioCapture = { SpeechRecorder(conversation = call != null) },
     private val recognizeStream: suspend (
         SpeechSettings,
         SpeechCredentials,
@@ -95,11 +101,13 @@ internal class SpeechInputController(
             try {
                 val rawConfig = settings ?: loadSettings()
                 if (!rawConfig.recognitionEnabled) return@launch
-                lease = SpeechAudioLease(context) { cancel() }.also { it.acquire(playback = false) }
+                lease = SpeechAudioLease(context, call = call, capture = true) { cancel(); onCallAudioInterrupted() }
+                    .also { it.acquire(playback = false) }
                 val rawSecrets = credentials ?: loadCredentials()
                 val (config, secrets) = SpeechSettingsRepository.resolveDeepSeekFallback(rawConfig, rawSecrets)
                 validateSpeechSettings(config, secrets, synthesis = false)
                 val endpointSilenceMs = if (automaticEndpoint && !holdToTalk) config.autoSendSilenceMs else 0
+                val localEndpoint = if (call != null && endpointSilenceMs > 0) CallSilenceDetector(endpointSilenceMs) else null
                 val audio = createRecorder()
                 recorder = audio
                 fun update(transform: (SpeechInputState) -> SpeechInputState) {
@@ -125,6 +133,8 @@ internal class SpeechInputController(
                                                             R.string.voice_i18n_progress_hold_to_talk,
                                                             "松开发送，移出取消",
                                                         )
+                                                    } else if (call != null) {
+                                                        AppStrings.get(R.string.voice_conversation_listening, "正在收听…")
                                                     } else {
                                                         AppStrings.get(
                                                             R.string.voice_i18n_progress_listening_tap_done,
@@ -134,7 +144,16 @@ internal class SpeechInputController(
                                                 )
                                             }
                                         },
-                                        onLevel = { level -> update { it.copy(level = level) } },
+                                        onLevel = { level ->
+                                            update { it.copy(level = level) }
+                                            when (localEndpoint?.accept(level, SystemClock.elapsedRealtime())) {
+                                                CallSilenceDetector.Event.STARTED -> scope.launch(Dispatchers.Main.immediate) {
+                                                    if (generation == session) onCallSpeechStarted(audio.echoCancellationEnabled)
+                                                }
+                                                CallSilenceDetector.Event.ENDED -> audio.finish()
+                                                null -> Unit
+                                            }
+                                        },
                                     )
                                 } finally {
                                     if (generation == session) releaseCapture()
@@ -207,6 +226,7 @@ internal class SpeechInputController(
                     cancel()
                     mutableState.value = SpeechInputState(
                         error = failure.userMessage,
+                        errorCode = failure.code,
                         configureAvailable = failure.code == SpeechErrorCode.CONFIGURATION ||
                             failure.code == SpeechErrorCode.CREDENTIALS ||
                             failure.code == SpeechErrorCode.AUTHENTICATION,

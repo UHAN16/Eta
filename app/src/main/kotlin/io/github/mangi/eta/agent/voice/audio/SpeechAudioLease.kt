@@ -22,23 +22,26 @@ import kotlinx.coroutines.CancellationException
 internal class SpeechAudioLease(
     private val context: Context,
     private val interruptOnScreenOff: Boolean = true,
+    private val call: SpeechDuplexSession? = null,
+    private val capture: Boolean = false,
     private val interrupt: () -> Unit,
 ) : Closeable {
     private val manager = context.getSystemService(AudioManager::class.java)
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
         .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-        .setOnAudioFocusChangeListener({ change -> if (change < 0 && current === this) interrupt() }, Handler(Looper.getMainLooper()))
+        .setOnAudioFocusChangeListener({ change -> if (change < 0 && this in current) interrupt() }, Handler(Looper.getMainLooper()))
         .build()
     private var registered = false
     private var focused = false
     private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) { if (current === this@SpeechAudioLease) interrupt() }
+        override fun onReceive(context: Context, intent: Intent) { if (this@SpeechAudioLease in current) interrupt() }
     }
 
     fun acquire(playback: Boolean, beforeFocus: () -> Unit = {}) {
-        current?.interrupt?.invoke()
-        current = this
+        current.toList().filterNot { call != null && it.call === call && it.capture != capture }
+            .forEach { old -> old.interrupt(); old.close() }
+        current.add(this)
         try {
             context.registerReceiver(receiver, IntentFilter().apply {
                 addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
@@ -53,7 +56,7 @@ internal class SpeechAudioLease(
     }
 
     fun requestPlaybackFocus(beforeFocus: () -> Unit = {}) {
-        if (current !== this) throw CancellationException("Speech owner replaced")
+        if (this !in current) throw CancellationException("Speech owner replaced")
         beforeFocus()
         focused = manager.requestAudioFocus(focus) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         if (!focused) {
@@ -69,8 +72,11 @@ internal class SpeechAudioLease(
         registered = false
         if (focused) manager.abandonAudioFocusRequest(focus)
         focused = false
-        if (current === this) current = null
+        current.remove(this)
     }
 
-    private companion object { var current: SpeechAudioLease? = null }
+    private companion object { val current = mutableSetOf<SpeechAudioLease>() }
 }
+
+/** Opt-in: one microphone and one player owned by the same foreground call may overlap. */
+internal class SpeechDuplexSession
