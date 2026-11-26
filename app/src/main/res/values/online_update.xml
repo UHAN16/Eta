@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_online_title">Online update</string>
+    <string name="update_channel">Source: %1$s</string>
+    <string name="update_channel_empty">No stable release is published for %1$s.</string>
+    <string name="update_download_install">Download and install</string>
+    <string name="update_install">Install update</string>
+    <string name="update_open_release">Release page</string>
+    <string name="update_open_release_failed">Unable to open the release page.</string>
+    <string name="update_no_verified_asset">This release has no verified APK available for in-app installation.</string>
+    <string name="update_downloading">Downloading… %1$d%%</string>
+    <string name="update_verifying">Verifying APK…</string>
+    <string name="update_ready">APK verified and ready to install.</string>
+    <string name="update_install_permission_needed">Allow Eta to install from this source in Android settings to continue.</string>
+    <string name="update_open_installer_failed">Unable to open the Android installer. Check again if the downloaded file is missing.</string>
+    <string name="update_integrity_failed">APK integrity check failed. The update was not installed.</string>
+    <string name="update_package_mismatch">This file is not an installable Eta APK for the installed app.</string>
+    <string name="update_version_mismatch">The APK does not match the release version or is not newer than the installed app.</string>
+    <string name="update_signature_mismatch">The APK was signed with a different key and cannot replace this build.</string>
+    <string name="update_system_unsupported">The update requires a newer Android version.</string>
+    <string name="update_download_failed">Download failed. Check your connection and try again.</string>
+</resources>

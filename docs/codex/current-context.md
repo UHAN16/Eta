@@ -8,3 +8,8 @@ Memory landing policy: preauthorized
 - Preserve ordinary text chat, existing manual dictation, ordinary background read-aloud, roleplay persistence, and permission policy. Do not change broad permissions to make voice work.
 - GitHub deploy-key push of main succeeded. SSH settings are repository-local; secrets live outside the repository and must never be copied into memory or artifacts.
 - Before continuing, read active-task.md and ../VOICE.md. Phone acceptance and original-signature production packaging remain separate follow-up work.
+
+## Online upgrade (2026-11-26)
+- Separate local branch feature/online-upgrade adds one-click verified download and user-confirmed Android install without editing chat, voice, or local conversation links.
+- Read [the online upgrade task](tasks/online-upgrade/active-task.md) and [release/usage requirements](../ONLINE_UPDATE.md) before changing this flow.
+- Default channel UHAN16/Eta has no stable release yet; never silently switch to upstream or permit cross-signature installation. Device OTA remains untested.

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_online_title">線上升級</string>
+    <string name="update_channel">更新來源：%1$s</string>
+    <string name="update_channel_empty">%1$s 尚未發布正式版。</string>
+    <string name="update_download_install">下載並安裝</string>
+    <string name="update_install">安裝更新</string>
+    <string name="update_open_release">查看發布頁</string>
+    <string name="update_open_release_failed">無法開啟發布頁。</string>
+    <string name="update_no_verified_asset">此版本沒有可在應用程式內驗證並安裝的 APK。</string>
+    <string name="update_downloading">正在下載… %1$d%%</string>
+    <string name="update_verifying">正在驗證安裝套件…</string>
+    <string name="update_ready">安裝套件已通過驗證，可以安裝。</string>
+    <string name="update_install_permission_needed">請在 Android 設定中允許 Eta 安裝未知應用程式，再繼續升級。</string>
+    <string name="update_open_installer_failed">無法開啟 Android 安裝程式。若安裝套件已被清除，請重新檢查更新。</string>
+    <string name="update_integrity_failed">安裝套件驗證失敗，未安裝更新。</string>
+    <string name="update_package_mismatch">該檔案不是適用於目前 Eta 的安裝套件。</string>
+    <string name="update_version_mismatch">安裝套件版本與發布版本不符，或不比已安裝版本新。</string>
+    <string name="update_signature_mismatch">安裝套件簽章與目前版本不同，無法覆蓋安裝。</string>
+    <string name="update_system_unsupported">此更新需要更高的 Android 版本。</string>
+    <string name="update_download_failed">下載失敗，請檢查網路後重試。</string>
+</resources>

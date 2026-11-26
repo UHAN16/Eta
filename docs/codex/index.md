@@ -5,3 +5,4 @@
 - [Voice and local-link behavior](../VOICE.md)
 
 No secrets, private keys, API keys, or real chat content are stored here.
+- [Online upgrade task](tasks/online-upgrade/active-task.md)

@@ -79,10 +79,7 @@ import io.github.mangi.eta.data.provider.BuiltinProviders
 import io.github.mangi.eta.data.repository.ImageGenSettingsRepository
 import io.github.mangi.eta.data.repository.ProviderRepository
 import io.github.mangi.eta.data.repository.RuntimeConfigRepository
-import io.github.mangi.eta.data.update.AppLatestRelease
-import io.github.mangi.eta.data.update.AppUpdateChecker
 import io.github.mangi.eta.ui.state.EnhancementSettingsHistory
-import io.github.mangi.eta.ui.components.DialogActions
 import io.github.mangi.eta.ui.components.LanguagePreference
 import io.github.mangi.eta.ui.components.ScaffoldPage
 import io.github.mangi.eta.ui.components.StatusSuccess
@@ -102,7 +99,6 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.glass.GlassDialog
 import top.yukonga.miuix.kmp.glass.GlassDropdownPreference
 import top.yukonga.miuix.kmp.preference.ArrowPreference
 import top.yukonga.miuix.kmp.preference.SwitchPreference
@@ -184,40 +180,11 @@ private fun SettingsPageContent(
     val assistantRoleStatus = systemStatus.assistantRoleStatus
     var accessibilityProtectionPending by remember { mutableStateOf(false) }
 
-    // 关于组：版本信息与更新检查。结果对话框在列表外渲染，状态需要页面级 owner。
-    val appVersionName = BuildConfig.VERSION_NAME
     val appVersionSummary = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
     val openUrl: (String) -> Unit = { url ->
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
-    var checkingUpdate by remember { mutableStateOf(false) }
-    var availableUpdate by remember { mutableStateOf<AppLatestRelease?>(null) }
-    var retainedUpdate by remember { mutableStateOf<AppLatestRelease?>(null) }
-    if (availableUpdate != null) retainedUpdate = availableUpdate
-    val checkForUpdate: () -> Unit = {
-        if (!checkingUpdate) {
-            checkingUpdate = true
-            coroutineScope.launch {
-                val release = runCatching {
-                    withContext(Dispatchers.IO) { AppUpdateChecker.fetchLatest() }
-                }.getOrNull()
-                checkingUpdate = false
-                when {
-                    release == null -> Toast.makeText(
-                        context.applicationContext,
-                        context.getString(R.string.ui_update_check_failed),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    AppUpdateChecker.isNewer(release.version, appVersionName) -> availableUpdate = release
-                    else -> Toast.makeText(
-                        context.applicationContext,
-                        context.getString(R.string.ui_update_already_latest),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
-            }
-        }
-    }
+    val onlineUpdate = rememberOnlineUpdate(context)
 
     // Provider / Model 选中状态展示
     val initialProviders = remember { ProviderRepository.cachedProviders() }
@@ -550,30 +517,7 @@ private fun SettingsPageContent(
     ScaffoldPage(
         title = stringResource(R.string.ui_set_up_7debf9),
         onBack = onBack,
-        overlay = {
-            val activeUpdate = availableUpdate ?: retainedUpdate
-            GlassDialog(
-                show = availableUpdate != null,
-                backdrop = currentGlassOverlayBackdrop(),
-                title = stringResource(R.string.ui_update_available_title),
-                summary = activeUpdate?.let { update ->
-                    stringResource(R.string.ui_update_available_message, update.version, appVersionName)
-                },
-                onDismissRequest = { availableUpdate = null },
-                onDismissFinished = { if (availableUpdate == null) retainedUpdate = null },
-            ) {
-                DialogActions(
-                    confirmText = stringResource(R.string.ui_update_go_download),
-                    confirmEnabled = activeUpdate != null,
-                    onCancel = { availableUpdate = null },
-                    onConfirm = {
-                        val target = activeUpdate
-                        availableUpdate = null
-                        if (target != null) openUrl(target.url)
-                    },
-                )
-            }
-        },
+        overlay = onlineUpdate.dialog,
     ) {
         item(key = "section_agent_title") {
             SmallTitle(stringResource(R.string.settings_llm_providers))
@@ -926,20 +870,16 @@ private fun SettingsPageContent(
                     startAction = { SettingsIcon(Icons.Rounded.Info) },
                 )
                 ArrowPreference(
-                    title = stringResource(R.string.ui_about_update_title),
-                    summary = if (checkingUpdate) {
-                        stringResource(R.string.ui_about_update_checking)
-                    } else {
-                        null
-                    },
+                    title = stringResource(R.string.update_online_title),
+                    summary = onlineUpdate.status,
                     startAction = {
                         SettingsIcon(
                             icon = Icons.Rounded.SystemUpdate,
-                            enabled = !checkingUpdate,
+                            enabled = !onlineUpdate.checking,
                         )
                     },
-                    enabled = !checkingUpdate,
-                    onClick = checkForUpdate,
+                    enabled = !onlineUpdate.checking,
+                    onClick = onlineUpdate.onClick,
                 )
                 ArrowPreference(
                     title = stringResource(R.string.ui_about_feedback_title),

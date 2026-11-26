@@ -29,6 +29,13 @@ require(buildMetadata == null || buildMetadata.matches(Regex("[0-9A-Za-z.-]+")))
 }
 val buildMetadataSuffix = buildMetadata?.let { "+$it" }.orEmpty()
 
+// Release channel is fixed at build time, never taken from downloaded metadata or user input.
+val updateRepository = providers.gradleProperty("eta.updateRepository").orElse("UHAN16/Eta").get()
+require(updateRepository.matches(Regex("[A-Za-z0-9-]+/[A-Za-z0-9_.-]+")) &&
+    updateRepository.substringAfter('/') !in setOf(".", "..")) {
+    "eta.updateRepository must be a GitHub owner/repository"
+}
+
 android {
     namespace = "io.github.mangi.eta"
     compileSdk {
@@ -45,6 +52,7 @@ android {
         // versionCode 规则：yyyyMMdd + 两位当日序号（01 起），发版时随 versionName 一起手动递增。
         versionCode = 2026111302
         versionName = "3.4.4"
+        buildConfigField("String", "UPDATE_REPOSITORY", "\"$updateRepository\"")
 
         ndk {
             // 同时过滤本地与依赖 AAR 的原生库，确保 APK 仅包含 ARM64。
