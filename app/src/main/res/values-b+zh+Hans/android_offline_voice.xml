@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="offline_asr_title">Android 本机识别</string>
+    <string name="offline_tts_title">系统离线朗读</string>
+    <string name="offline_enable_both">使用本机语音</string>
+    <string name="offline_selected">已使用本机语音</string>
+    <string name="offline_setup_summary">一键启用本机识别和系统离线朗读，不需要 API Key；启用后可点此选择音色。</string>
+    <string name="offline_save_failed">保存本机语音设置失败，请重试。</string>
+    <string name="offline_asr_note">仅使用 Android 本机识别。停顿由系统引擎判断，可能需要安装离线语言包；不会改用云端，也不调用模型纠错。</string>
+    <string name="offline_asr_language">识别语言</string>
+    <string name="offline_use_current_language">使用应用语言</string>
+    <string name="offline_asr_test_note">测试使用 Android 本机识别，不会保存当前设置。</string>
+    <string name="offline_asr_unavailable">此设备没有可用的 Android 本机语音识别服务。</string>
+    <string name="offline_asr_language_missing">所选语言没有可用的离线识别包。请在系统语音输入设置中安装，或换一种语言。</string>
+    <string name="offline_asr_listening">正在本机识别，说完停顿即可</string>
+    <string name="offline_asr_failed">本机识别服务出错（代码 %1$d）。请检查系统语音服务。</string>
+    <string name="offline_tts_unavailable">无法启动 Android 系统朗读引擎。</string>
+    <string name="offline_tts_voice_missing">所选离线音色不可用</string>
+    <string name="offline_tts_auto_voice">自动选择离线音色</string>
+    <string name="offline_tts_refresh">刷新已安装的音色</string>
+    <string name="offline_tts_no_voices">未找到已安装的离线音色。请在 Android 的文字转语音设置中安装语音数据。</string>
+    <string name="offline_tts_voice_note">只列出系统引擎标记为离线且已安装的音色。可先点击下方「试听」，满意后再保存。</string>
+    <string name="offline_tts_failed">系统离线朗读失败。请检查系统的文字转语音引擎和语音数据。</string>
+</resources>

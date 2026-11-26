@@ -34,13 +34,14 @@ internal fun SpeechConnectionSection(store: SpeechSettingsStore, synthesis: Bool
         when (store.settings.asr) {
             AsrProvider.MIMO -> MimoAsrConnectionSection(store)
             AsrProvider.DEEPSEEK -> DeepSeekAsrConnectionSection(store)
+            AsrProvider.ANDROID_OFFLINE -> Unit
             AsrProvider.QWEN_REALTIME, AsrProvider.QWEN_FLASH, AsrProvider.QWEN_FILE, AsrProvider.DOUBAO ->
                 QwenDoubaoConnectionSection(store, synthesis = false)
         }
         return
     }
     when (store.settings.tts) {
-        TtsProvider.NONE -> Unit
+        TtsProvider.NONE, TtsProvider.ANDROID_OFFLINE -> Unit
         TtsProvider.QWEN, TtsProvider.DOUBAO -> QwenDoubaoConnectionSection(store, synthesis = true)
         TtsProvider.GEMINI -> GeminiConnectionSection(store)
         TtsProvider.MINIMAX -> MiniMaxConnectionSection(store)

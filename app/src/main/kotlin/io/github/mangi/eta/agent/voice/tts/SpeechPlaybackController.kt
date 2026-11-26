@@ -6,6 +6,7 @@ import io.github.mangi.eta.core.AndroidAgentLogger
 import io.github.mangi.eta.core.AppStrings
 import io.github.mangi.eta.data.model.SpeechCredentials
 import io.github.mangi.eta.data.model.SpeechSettings
+import io.github.mangi.eta.data.model.TtsProvider
 import io.github.mangi.eta.data.repository.SpeechSettingsRepository
 import java.io.Closeable
 import kotlinx.coroutines.CancellationException
@@ -44,6 +45,8 @@ internal class SpeechPlaybackController(
     /** 整篇单会话流式合成；为 null 时只用逐段请求。 */
     private val streamSynthesize: (suspend (SpeechSettings, SpeechCredentials, List<String>, (ByteArray) -> Unit) -> Unit)? = ::streamSpeech,
     private val createOutput: () -> SpeechAudioOutput = ::SpeechPcmOutput,
+    private val loadCredentials: suspend () -> SpeechCredentials = { SpeechSettingsRepository.credentials(context) },
+    private val speakOffline: suspend (Context, String, String, () -> Unit) -> Unit = ::speakAndroidOffline,
 ) {
     private val mutableState = MutableStateFlow(SpeechPlaybackState())
     val state = mutableState.asStateFlow()
@@ -62,22 +65,22 @@ internal class SpeechPlaybackController(
                 lease = SpeechAudioLease(context, interruptOnScreenOff, call = call) { stop() }
                     .also { it.acquire(playback = false) }
                 val rawConfig = settings ?: SpeechSettingsRepository.settings()
-                val rawSecrets = credentials ?: SpeechSettingsRepository.credentials(context)
+                if (rawConfig.tts == TtsProvider.ANDROID_OFFLINE) {
+                    val readable = readableSpeech(text)
+                    lease?.requestPlaybackFocus { beforePlayback(); playbackActive = true }
+                    speakOffline(context, readable, rawConfig.offlineTtsVoice) {
+                        if (session == generation) mutableState.value = SpeechPlaybackState(messageId)
+                    }
+                    if (session == generation) {
+                        stop()
+                        onCompleted?.invoke()
+                    }
+                    return@launch
+                }
+                val rawSecrets = credentials ?: loadCredentials()
                 val (config, secrets) = SpeechSettingsRepository.resolveDeepSeekFallback(rawConfig, rawSecrets)
                 validateSpeechSettings(config, secrets, synthesis = true)
-                val readable = withContext(Dispatchers.Default) { SpeechText.readable(text) }
-                if (readable.isBlank()) {
-                    throw SpeechFailure(
-                        SpeechErrorCode.NO_SPEECH,
-                        AppStrings.get(R.string.voice_i18n_playback_no_readable_text, "这条消息没有可朗读的正文"),
-                    )
-                }
-                if (readable.length > 30_000) {
-                    throw SpeechFailure(
-                        SpeechErrorCode.CONFIGURATION,
-                        AppStrings.get(R.string.voice_i18n_playback_text_too_long, "正文过长，请选择较短的回答朗读"),
-                    )
-                }
+                val readable = readableSpeech(text)
                 lease?.requestPlaybackFocus { beforePlayback(); playbackActive = true }
                 val player = createOutput()
                 output = player
@@ -104,6 +107,19 @@ internal class SpeechPlaybackController(
                 if (session == generation) stop()
             }
         }
+    }
+
+    private suspend fun readableSpeech(text: String): String {
+        val readable = withContext(Dispatchers.Default) { SpeechText.readable(text) }
+        if (readable.isBlank()) throw SpeechFailure(
+            SpeechErrorCode.NO_SPEECH,
+            AppStrings.get(R.string.voice_i18n_playback_no_readable_text, "这条消息没有可朗读的正文"),
+        )
+        if (readable.length > 30_000) throw SpeechFailure(
+            SpeechErrorCode.CONFIGURATION,
+            AppStrings.get(R.string.voice_i18n_playback_text_too_long, "正文过长，请选择较短的回答朗读"),
+        )
+        return readable
     }
 
     /**

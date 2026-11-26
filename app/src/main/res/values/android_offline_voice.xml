@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="offline_asr_title">Android on-device recognition</string>
+    <string name="offline_tts_title">Android offline text-to-speech</string>
+    <string name="offline_enable_both">Use on-device voice</string>
+    <string name="offline_selected">On-device voice enabled</string>
+    <string name="offline_setup_summary">Use Android recognition and installed offline speech voices. No API key needed.</string>
+    <string name="offline_save_failed">Could not save on-device voice settings. Try again.</string>
+    <string name="offline_asr_note">Uses only Android on-device recognition. Android decides when speech ends; a language pack may be required. No cloud fallback or model transcript correction.</string>
+    <string name="offline_asr_language">Recognition language</string>
+    <string name="offline_use_current_language">Use app language</string>
+    <string name="offline_asr_test_note">The test uses Android on-device recognition and does not save the settings.</string>
+    <string name="offline_asr_unavailable">Android on-device speech recognition is unavailable on this device.</string>
+    <string name="offline_asr_language_missing">This language has no usable offline recognition pack. Install it in Android voice input settings or choose another language.</string>
+    <string name="offline_asr_listening">Listening on device — pause to finish</string>
+    <string name="offline_asr_failed">Android on-device recognition failed (code %1$d). Check the system speech service.</string>
+    <string name="offline_tts_unavailable">Could not start the Android text-to-speech engine.</string>
+    <string name="offline_tts_voice_missing">Selected offline voice is unavailable</string>
+    <string name="offline_tts_auto_voice">Automatic offline voice</string>
+    <string name="offline_tts_refresh">Refresh installed voices</string>
+    <string name="offline_tts_no_voices">No installed offline voices. Install voice data in Android text-to-speech settings.</string>
+    <string name="offline_tts_voice_note">Only installed voices that the system engine marks as offline appear here. Use Preview to listen to the selected voice before saving.</string>
+    <string name="offline_tts_failed">System offline playback failed. Check the installed voice data and Android text-to-speech settings.</string>
+</resources>

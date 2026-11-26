@@ -59,6 +59,7 @@ internal fun validateSpeechSettings(
     }
     if (synthesis) {
         when (settings.tts) {
+            TtsProvider.ANDROID_OFFLINE -> Unit // System capability and the installed voice are checked at use time.
             TtsProvider.NONE -> throw SpeechFailure(
                 SpeechErrorCode.CONFIGURATION,
                 AppStrings.get(R.string.voice_i18n_config_tts_required, "请先在设置中配置语音播报"),
@@ -118,6 +119,7 @@ internal fun validateSpeechSettings(
             }
         }
     } else when (settings.asr) {
+        AsrProvider.ANDROID_OFFLINE -> Unit
         AsrProvider.MIMO -> {
             required(secrets.mimoAsr, R.string.voice_i18n_field_mimo_asr_api_key, "MiMo 识别 API Key")
             speechBaseUrl(settings.mimoAsr.baseUrl)

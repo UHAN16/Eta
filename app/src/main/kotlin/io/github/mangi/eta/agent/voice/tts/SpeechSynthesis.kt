@@ -22,6 +22,7 @@ import io.github.mangi.eta.agent.voice.audio.speechBaseUrl
 internal suspend fun synthesizeSpeech(settings: SpeechSettings, credentials: SpeechCredentials,
     text: String, onAudio: (ByteArray) -> Unit) = withTimeout(90_000) {
     when (settings.tts) {
+        TtsProvider.ANDROID_OFFLINE -> error("Android offline TTS must use the system playback path")
         TtsProvider.GEMINI -> return@withTimeout synthesizeGemini(settings.geminiTts, credentials.geminiTts, text, onAudio)
         TtsProvider.MINIMAX -> return@withTimeout synthesizeMiniMax(settings.minimaxTts, credentials.minimaxTts, text, onAudio)
         TtsProvider.MIMO -> return@withTimeout synthesizeMimo(settings.mimoTts, credentials.mimoTts, text, onAudio)

@@ -18,3 +18,8 @@ Memory landing policy: preauthorized
 - Local branch feature/voice-call extends a5e1b8ed (online upgrade) with foreground conversational audio. See [voice call task](tasks/voice-call/active-task.md) and [usage](../VOICE.md).
 - Preserve ordinary push-to-talk, manual/background read-aloud, roleplay storage, and OTA. Only the explicit call audio pair can overlap; ASR and TTS are still the configured services.
 - Build, lint and 88 targeted tests passed; no real phone was connected. Do not claim hands-free echo performance on any particular device without testing.
+
+## Android on-device voice
+- Local branch feature/android-offline-voice extends 2b740a1a. See [the Android offline task](tasks/android-offline-voice/active-task.md) and the [voice guide](../VOICE.md).
+- Device ASR is restricted to Android on-device recognition; native TTS only selects installed non-network voices. No app-bundled language models and no additional permissions. Do not add a cloud fallback for either local provider.
+- Final build, Android Lint and 197 targeted tests passed. No handset or OEM voice engine was tested.

@@ -10,6 +10,7 @@ import io.github.mangi.eta.data.model.SpeechCredentials
 import io.github.mangi.eta.data.model.SpeechSettings
 import io.github.mangi.eta.data.repository.SpeechSettingsRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -73,6 +74,8 @@ internal class SpeechInputController(
     ) -> String = ::recognizeSpeechFile,
     private val loadSettings: suspend () -> SpeechSettings = SpeechSettingsRepository::settings,
     private val loadCredentials: suspend () -> SpeechCredentials = { SpeechSettingsRepository.credentials(context) },
+    private val startOfflineRecognition: (Context, String, Int, OfflineRecognitionEvents) -> AndroidOfflineRecognition =
+        ::startAndroidOfflineRecognition,
     private val onHoldResult: ((String) -> Unit)? = null,
     private val onResult: (String) -> Unit,
 ) {
@@ -82,6 +85,8 @@ internal class SpeechInputController(
     private var finishRequested = false
     private var job: Job? = null
     private var recorder: SpeechAudioCapture? = null
+    private var offlineRecognition: AndroidOfflineRecognition? = null
+    private var offlineHoldRelease: CompletableDeferred<Unit>? = null
     private var lease: SpeechAudioLease? = null
     private var capturing = false
 
@@ -103,6 +108,11 @@ internal class SpeechInputController(
                 if (!rawConfig.recognitionEnabled) return@launch
                 lease = SpeechAudioLease(context, call = call, capture = true) { cancel(); onCallAudioInterrupted() }
                     .also { it.acquire(playback = false) }
+                if (rawConfig.asr == AsrProvider.ANDROID_OFFLINE) {
+                    // No provider secrets, cloud ASR, file upload, or model-assisted transcript refinement.
+                    deliver(session, recognizeOnDevice(rawConfig, session, holdToTalk))
+                    return@launch
+                }
                 val rawSecrets = credentials ?: loadCredentials()
                 val (config, secrets) = SpeechSettingsRepository.resolveDeepSeekFallback(rawConfig, rawSecrets)
                 validateSpeechSettings(config, secrets, synthesis = false)
@@ -202,22 +212,9 @@ internal class SpeechInputController(
                         recording?.cancel()
                     }
                 }
-                if (text.isBlank()) {
-                    throw SpeechFailure(
-                        SpeechErrorCode.NO_SPEECH,
-                        AppStrings.get(R.string.voice_i18n_no_speech_recognized, "没有识别到语音，请重试"),
-                    )
-                }
+                requireSpeech(text)
                 val final = refined(session, config.refineTranscript, text)
-                if (generation == session) {
-                    val holdMode = mutableState.value.holdToTalk
-                    cancel()
-                    if (holdMode && onHoldResult != null) {
-                        onHoldResult(final)
-                    } else {
-                        onResult(final)
-                    }
-                }
+                deliver(session, final)
             } catch (error: Exception) {
                 if (error is CancellationException && error !is kotlinx.coroutines.TimeoutCancellationException) throw error
                 if (generation == session) {
@@ -236,6 +233,69 @@ internal class SpeechInputController(
                 if (generation == session) cancel()
             }
         }
+    }
+
+    private suspend fun recognizeOnDevice(config: SpeechSettings, session: Long, hold: Boolean): String {
+        val language = config.offlineAsrLanguage.ifBlank { context.resources.configuration.locales[0].toLanguageTag() }
+        val release = if (hold) CompletableDeferred<Unit>() else null
+        offlineHoldRelease = release
+        fun update(transform: (SpeechInputState) -> SpeechInputState) {
+            if (generation == session) mutableState.value = transform(mutableState.value)
+        }
+        beforeCapture()
+        capturing = true
+        val recognition = startOfflineRecognition(
+            context, language, if (automaticEndpoint && !hold) config.autoSendSilenceMs else 0,
+            OfflineRecognitionEvents(
+                ready = {
+                    if (!finishRequested) update {
+                        it.copy(phase = EtaSpeechPhase.LISTENING, progress = if (hold) AppStrings.get(
+                            R.string.voice_i18n_progress_hold_to_talk, "松开发送，移出取消",
+                        ) else AppStrings.get(R.string.offline_asr_listening, "正在本机识别，说完停顿即可"))
+                    }
+                },
+                speechStarted = { if (generation == session && call != null) onCallSpeechStarted(false) },
+                speechEnded = {
+                    if (!hold || finishRequested) update {
+                        it.copy(phase = EtaSpeechPhase.RECOGNIZING, level = 0f,
+                            progress = AppStrings.get(R.string.voice_i18n_progress_recognizing, "正在识别"))
+                    }
+                },
+                preview = { text -> update { it.copy(preview = text) } },
+                level = { level -> update { it.copy(level = level) } },
+            ),
+        )
+        offlineRecognition = recognition
+        val text = try {
+            withTimeout(70_000) { recognition.await() }
+        } finally {
+            recognition.close()
+            if (generation == session) {
+                offlineRecognition = null
+                releaseCapture()
+            }
+        }
+        requireSpeech(text)
+        if (hold && !finishRequested) {
+            // Some Android engines finish early. Keep the final text as preview until the user actually releases.
+            update { it.copy(phase = EtaSpeechPhase.LISTENING, preview = text, level = 0f) }
+            release?.await()
+        }
+        return text
+    }
+
+    private fun requireSpeech(text: String) {
+        if (text.isBlank()) throw SpeechFailure(
+            SpeechErrorCode.NO_SPEECH,
+            AppStrings.get(R.string.voice_i18n_no_speech_recognized, "没有识别到语音，请重试"),
+        )
+    }
+
+    private fun deliver(session: Long, text: String) {
+        if (generation != session) return
+        val hold = mutableState.value.holdToTalk
+        cancel()
+        if (hold && onHoldResult != null) onHoldResult(text) else onResult(text)
     }
 
     /** 纠错失败不影响交付；只有纠错仍属于当前会话时才展示进度。 */
@@ -260,14 +320,16 @@ internal class SpeechInputController(
     fun finish() {
         if (!mutableState.value.active || finishRequested) return
         finishRequested = true
-        if (mutableState.value.phase == EtaSpeechPhase.STARTING) { cancel(); return }
+        if (mutableState.value.phase == EtaSpeechPhase.STARTING && offlineRecognition == null) { cancel(); return }
         recorder?.finish()
+        offlineRecognition?.finish()
         val progressText = if (mutableState.value.holdToTalk) {
             AppStrings.get(R.string.voice_i18n_progress_recognizing_and_sending, "正在识别并发送")
         } else {
             AppStrings.get(R.string.voice_i18n_progress_recognizing, "正在识别")
         }
         mutableState.value = mutableState.value.copy(phase = EtaSpeechPhase.RECOGNIZING, progress = progressText, level = 0f)
+        offlineHoldRelease?.complete(Unit)
     }
 
     fun cancel() {
@@ -275,6 +337,8 @@ internal class SpeechInputController(
         finishRequested = false
         // 先取消识别协程，避免关闭录音通道被当作正常录音完成而提交请求。
         job?.cancel(); job = null
+        offlineRecognition?.close(); offlineRecognition = null
+        offlineHoldRelease?.cancel(); offlineHoldRelease = null
         recorder?.cancel(); recorder = null
         releaseCapture()
         lease?.close(); lease = null

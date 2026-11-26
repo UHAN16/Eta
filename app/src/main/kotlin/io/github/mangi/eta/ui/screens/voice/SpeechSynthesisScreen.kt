@@ -59,8 +59,10 @@ internal fun SpeechSynthesisScreen(onBack: () -> Unit) {
             }
         }
         if (settings.tts != TtsProvider.NONE) {
-            item(key = "connection") {
-                SpeechConnectionSection(store, synthesis = true)
+            if (settings.tts != TtsProvider.ANDROID_OFFLINE) {
+                item(key = "connection") {
+                    SpeechConnectionSection(store, synthesis = true)
+                }
             }
             item(key = "voice") {
                 SpeechVoiceSection(store)
@@ -70,7 +72,7 @@ internal fun SpeechSynthesisScreen(onBack: () -> Unit) {
             }
         }
         item(key = "save") {
-            SpeechSaveBlock(store) {
+            SpeechSaveBlock(store, persistCredentials = settings.tts != TtsProvider.ANDROID_OFFLINE) {
                 if (store.settings.tts != TtsProvider.NONE) {
                     validateSpeechSettings(
                         store.settings,

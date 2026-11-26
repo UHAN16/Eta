@@ -21,7 +21,7 @@ import io.github.mangi.eta.agent.voice.audio.speechBaseUrl
 
 internal fun supportsSpeechSession(provider: TtsProvider): Boolean = when (provider) {
     TtsProvider.QWEN, TtsProvider.DOUBAO, TtsProvider.DEEPSEEK -> true
-    TtsProvider.NONE, TtsProvider.GEMINI, TtsProvider.MINIMAX, TtsProvider.MIMO -> false
+    TtsProvider.NONE, TtsProvider.GEMINI, TtsProvider.MINIMAX, TtsProvider.MIMO, TtsProvider.ANDROID_OFFLINE -> false
 }
 
 /**
@@ -36,6 +36,7 @@ internal suspend fun streamSpeech(
     onAudio: (ByteArray) -> Unit,
 ) = withTimeout(STREAM_TIMEOUT_MS) {
     when (settings.tts) {
+        TtsProvider.ANDROID_OFFLINE -> error("Android offline TTS must use the system playback path")
         TtsProvider.QWEN -> streamQwen(settings, credentials, chunks, onAudio)
         TtsProvider.DOUBAO -> streamDoubao(settings, credentials, chunks, onAudio)
         TtsProvider.DEEPSEEK -> streamDeepSeekSpeech(settings.deepseekTts, credentials.deepseekTts, chunks, onAudio)

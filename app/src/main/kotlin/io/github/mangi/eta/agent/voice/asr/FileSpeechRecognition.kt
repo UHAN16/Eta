@@ -42,7 +42,7 @@ internal suspend fun recognizeSpeechFile(
                 recognizeQwenShortAudio(settings, credentials, wav)
             }
             AsrProvider.QWEN_FILE -> recognizeQwenFile(context, settings, credentials, wav, onProgress)
-            AsrProvider.QWEN_REALTIME, AsrProvider.DOUBAO ->
+            AsrProvider.QWEN_REALTIME, AsrProvider.DOUBAO, AsrProvider.ANDROID_OFFLINE ->
                 throw SpeechFailure(
                     SpeechErrorCode.CONFIGURATION,
                     AppStrings.get(R.string.voice_i18n_asr_requires_streaming, "当前语音服务需要流式识别"),

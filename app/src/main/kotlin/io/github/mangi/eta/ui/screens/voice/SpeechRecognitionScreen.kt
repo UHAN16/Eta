@@ -44,10 +44,11 @@ internal fun SpeechRecognitionScreen(onBack: () -> Unit, onOpenOss: () -> Unit) 
         AsrProvider.QWEN_FILE -> R.string.speech_asr_note_file
         AsrProvider.MIMO -> R.string.speech_asr_note_mimo
         AsrProvider.DEEPSEEK -> R.string.speech_asr_note_deepseek
+        AsrProvider.ANDROID_OFFLINE -> R.string.offline_asr_note
     }
     val showQwenLanguage = when (settings.asr) {
         AsrProvider.QWEN_REALTIME, AsrProvider.QWEN_FLASH, AsrProvider.QWEN_FILE -> true
-        AsrProvider.DOUBAO, AsrProvider.MIMO, AsrProvider.DEEPSEEK -> false
+        AsrProvider.DOUBAO, AsrProvider.MIMO, AsrProvider.DEEPSEEK, AsrProvider.ANDROID_OFFLINE -> false
     }
 
     ScaffoldPage(
@@ -85,8 +86,12 @@ internal fun SpeechRecognitionScreen(onBack: () -> Unit, onOpenOss: () -> Unit) 
                     SpeechNote(stringResource(asrNoteRes))
                 }
             }
-            item(key = "connection") {
-                SpeechConnectionSection(store, synthesis = false)
+            if (settings.asr == AsrProvider.ANDROID_OFFLINE) {
+                item(key = "offline_language") { AndroidOfflineLanguagePreference(store) }
+            } else {
+                item(key = "connection") {
+                    SpeechConnectionSection(store, synthesis = false)
+                }
             }
             if (showQwenLanguage) {
                 item(key = "language") {
@@ -101,8 +106,8 @@ internal fun SpeechRecognitionScreen(onBack: () -> Unit, onOpenOss: () -> Unit) 
                     }
                 }
             }
-            item(key = "result") {
-                SpeechResultSection(store)
+            if (settings.asr != AsrProvider.ANDROID_OFFLINE) {
+                item(key = "result") { SpeechResultSection(store) }
             }
             if (settings.asr == AsrProvider.QWEN_FILE) {
                 item(key = "oss") {
@@ -124,10 +129,29 @@ internal fun SpeechRecognitionScreen(onBack: () -> Unit, onOpenOss: () -> Unit) 
             }
         }
         item(key = "save") {
-            SpeechSaveBlock(store) {
+            SpeechSaveBlock(store, persistCredentials = settings.asr != AsrProvider.ANDROID_OFFLINE) {
                 validateSpeechSettings(store.settings, store.credentials, synthesis = false)
             }
         }
+    }
+}
+
+@Composable
+private fun AndroidOfflineLanguagePreference(store: SpeechSettingsStore) {
+    val tags = listOf("", "zh-CN", "zh-TW", "en-US")
+    val labels = listOf(
+        stringResource(R.string.offline_use_current_language), "简体中文（中国）", "繁體中文（台灣）", "English (US)",
+    )
+    SpeechGroupCard {
+        GlassDropdownPreference(
+            title = stringResource(R.string.offline_asr_language),
+            items = labels,
+            selectedIndex = tags.indexOf(store.settings.offlineAsrLanguage).coerceAtLeast(0),
+            backdrop = currentGlassOverlayBackdrop(),
+            onSelectedIndexChange = { index ->
+                tags.getOrNull(index)?.let { store.edit(store.settings.copy(offlineAsrLanguage = it)) }
+            },
+        )
     }
 }
 
@@ -202,6 +226,7 @@ private fun SpeechRecognitionTestSection(store: SpeechSettingsStore) {
                 } else null,
             )
         }
-        SpeechNote(stringResource(R.string.speech_test_note))
+        SpeechNote(stringResource(if (store.settings.asr == AsrProvider.ANDROID_OFFLINE)
+            R.string.offline_asr_test_note else R.string.speech_test_note))
     }
 }

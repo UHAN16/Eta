@@ -37,6 +37,7 @@ internal fun AsrProvider.label(): String = stringResource(
         AsrProvider.DOUBAO -> R.string.speech_asr_doubao
         AsrProvider.MIMO -> R.string.speech_asr_mimo
         AsrProvider.DEEPSEEK -> R.string.speech_asr_deepseek
+        AsrProvider.ANDROID_OFFLINE -> R.string.offline_asr_title
     },
 )
 
@@ -50,6 +51,7 @@ internal fun TtsProvider.label(): String = stringResource(
         TtsProvider.MINIMAX -> R.string.speech_tts_minimax
         TtsProvider.MIMO -> R.string.speech_tts_mimo
         TtsProvider.DEEPSEEK -> R.string.speech_tts_deepseek
+        TtsProvider.ANDROID_OFFLINE -> R.string.offline_tts_title
     },
 )
 
@@ -104,7 +106,7 @@ internal fun SpeechFieldColumn(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-internal fun SpeechSaveBlock(store: SpeechSettingsStore, validate: () -> Unit) {
+internal fun SpeechSaveBlock(store: SpeechSettingsStore, persistCredentials: Boolean = true, validate: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -118,7 +120,7 @@ internal fun SpeechSaveBlock(store: SpeechSettingsStore, validate: () -> Unit) {
             enabled = store.loaded && !store.saving,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.textButtonColorsPrimary(),
-            onClick = { store.save(validate) },
+            onClick = { store.save(persistCredentials, validate) },
         )
         store.message?.let { message ->
             Text(

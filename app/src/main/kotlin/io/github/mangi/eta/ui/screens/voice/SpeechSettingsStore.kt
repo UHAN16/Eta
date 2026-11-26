@@ -83,7 +83,7 @@ internal class SpeechSettingsStore(
     }
 
     /** [validate] 由页面按自己的方向提供（识别 / 播报 / 不校验），校验失败即中断保存。 */
-    fun save(validate: () -> Unit) {
+    fun save(persistCredentials: Boolean, validate: () -> Unit) {
         if (!loaded || saving) return
         val config = settings
         val secrets = credentials
@@ -101,7 +101,7 @@ internal class SpeechSettingsStore(
         saving = true
         scope.launch {
             try {
-                SpeechSettingsRepository.saveCredentials(context, secrets)
+                if (persistCredentials) SpeechSettingsRepository.saveCredentials(context, secrets)
                 SpeechSettingsRepository.save(config)
                 message = context.getString(
                     if (settings === config && credentials === secrets) {

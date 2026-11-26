@@ -6,10 +6,10 @@ private const val MIMO_SPEECH_BASE_URL = "https://api.xiaomimimo.com/v1"
 private const val DEEPSEEK_SPEECH_BASE_URL = "https://api.deepseek.com"
 
 @Serializable
-enum class AsrProvider { QWEN_REALTIME, QWEN_FLASH, QWEN_FILE, DOUBAO, MIMO, DEEPSEEK }
+enum class AsrProvider { QWEN_REALTIME, QWEN_FLASH, QWEN_FILE, DOUBAO, MIMO, DEEPSEEK, ANDROID_OFFLINE }
 
 @Serializable
-enum class TtsProvider { NONE, QWEN, DOUBAO, GEMINI, MINIMAX, MIMO, DEEPSEEK }
+enum class TtsProvider { NONE, QWEN, DOUBAO, GEMINI, MINIMAX, MIMO, DEEPSEEK, ANDROID_OFFLINE }
 
 @Serializable
 enum class SpeechRegion { BEIJING, SINGAPORE }
@@ -128,6 +128,10 @@ data class SpeechSettings(
     val mimoTts: MimoTtsConfig = MimoTtsConfig(),
     val deepseekAsr: DeepSeekAsrConfig = DeepSeekAsrConfig(),
     val deepseekTts: DeepSeekTtsConfig = DeepSeekTtsConfig(),
+    /** Empty means the current app/device locale. This is independent of cloud ASR language. */
+    val offlineAsrLanguage: String = "",
+    /** Empty means choose an installed offline voice matching the text/app locale. */
+    val offlineTtsVoice: String = "",
 ) {
     companion object {
         const val DEFAULT_AUTO_SEND_SILENCE_MS = 2_000

@@ -95,6 +95,6 @@ internal object SpeechVoicePresets {
         TtsProvider.MINIMAX -> minimax
         TtsProvider.MIMO -> mimo
         TtsProvider.DEEPSEEK -> deepseek
-        TtsProvider.NONE -> emptyList()
+        TtsProvider.NONE, TtsProvider.ANDROID_OFFLINE -> emptyList()
     }
 }
