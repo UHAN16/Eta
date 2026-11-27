@@ -2,7 +2,8 @@ package io.github.mangi.eta.ui.state
 
 import android.content.Context
 import io.github.mangi.eta.agent.model.provider.AgentModelClient.ConversationMessage
-import io.github.mangi.eta.agent.runtime.ipc.AgentRuntimeWire
+import io.github.mangi.eta.agent.runtime.ipc.AgentRuntimeConnection
+import io.github.mangi.eta.core.AgentLogger
 import io.github.mangi.eta.data.db.EtaDatabase
 import io.github.mangi.eta.ui.model.AgentChatHomeUiState
 import io.github.mangi.eta.ui.model.AgentMessageUi
@@ -24,9 +25,11 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36], qualifiers = "en-rUS")
+@Config(sdk = [36], qualifiers = "en-rUS", shadows = [OfflineLinkRuntimeShadow::class])
 class LocalConversationLinkIntegrationTest {
     private lateinit var context: Context
     private val job = SupervisorJob()
@@ -35,7 +38,6 @@ class LocalConversationLinkIntegrationTest {
 
     @Before fun setup() {
         context = RuntimeEnvironment.getApplication()
-        shadowOf(RuntimeEnvironment.getApplication()).declareActionUnbindable(AgentRuntimeWire.ACTION_BIND)
         EtaDatabase.closeForTests()
         context.deleteDatabase("eta.db")
     }
@@ -115,4 +117,12 @@ class LocalConversationLinkIntegrationTest {
         }
         assertTrue("Timed out waiting for local persistence", condition())
     }
+}
+
+/** Keep real Room persistence but isolate runtime IPC from Robolectric's per-test main looper. */
+@Implements(value = AgentRuntimeConnection::class, isInAndroidSdk = false)
+internal class OfflineLinkRuntimeShadow {
+    @Implementation
+    @Suppress("UNUSED_PARAMETER")
+    protected fun acquire(context: Context, callLogger: AgentLogger): AgentRuntimeConnection.Lease? = null
 }
