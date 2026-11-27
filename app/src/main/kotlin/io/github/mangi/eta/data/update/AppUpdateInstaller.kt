@@ -73,7 +73,7 @@ internal object AppUpdateInstaller {
             val next = updateHttp.newCall(request).readCancellable { response ->
                 if (response.code in setOf(301, 302, 303, 307, 308)) {
                     val location = response.header("Location")?.let(response.request.url::resolve)
-                    if (location == null || !allowedAssetRedirect(location)) {
+                    if (location == null || !allowedAssetRedirect(location, asset)) {
                         throw IOException("Untrusted APK redirect")
                     }
                     return@readCancellable location
@@ -115,9 +115,22 @@ internal fun packageInstallerIntent(uri: Uri): Intent =
     Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 
-internal fun allowedAssetRedirect(url: HttpUrl): Boolean =
-    url.isHttps && url.port == 443 && url.encodedUsername.isEmpty() && url.encodedPassword.isEmpty() &&
-        url.host in setOf("release-assets.githubusercontent.com", "objects.githubusercontent.com")
+internal fun allowedAssetRedirect(url: HttpUrl, asset: UpdateAsset? = null): Boolean {
+    if (!url.isHttps || url.port != 443 || url.encodedUsername.isNotEmpty() ||
+        url.encodedPassword.isNotEmpty() || url.fragment != null) return false
+    if (asset?.url?.host != "gitee.com") {
+        return url.host in setOf("release-assets.githubusercontent.com", "objects.githubusercontent.com")
+    }
+    // First hop stays on this exact repository/attachment. The second uses Gitee's attachment CDN.
+    val segments = asset.url.pathSegments
+    val id = asset.attachmentId ?: return false
+    if (id <= 0 || segments.size != 6) return false
+    val attachmentPath = "/${segments[0]}/${segments[1]}/attach_files/$id/download/${segments.last()}"
+    val cdnSegments = url.pathSegments
+    return (url.host == "gitee.com" && url.encodedPath == attachmentPath && url.query == null) ||
+        (url.host == "foruda.gitee.com" && cdnSegments.size == 3 && cdnSegments[0] == "attach_file" &&
+            cdnSegments[1].all(Char::isDigit) && cdnSegments[1].isNotEmpty() && cdnSegments[2] == segments.last())
+}
 
 internal fun verifyCopy(input: InputStream, output: OutputStream, asset: UpdateAsset, onProgress: (Int) -> Unit) {
     if (asset.size !in 1..AppUpdateChecker.MAX_APK_BYTES) throw UpdateException(UpdateIssue.INTEGRITY)

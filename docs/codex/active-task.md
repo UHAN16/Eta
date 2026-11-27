@@ -1,4 +1,5 @@
 # Active task: voice-linked-roleplay
+Current continuation route: [Gitee mirror and update source](tasks/gitee-update-source/active-task.md). The original voice task history is retained below.
 Memory landing policy: preauthorized
 User approved project memory on 2026-11-25. Never record secrets.
 ## Request

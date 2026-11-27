@@ -30,10 +30,13 @@ require(buildMetadata == null || buildMetadata.matches(Regex("[0-9A-Za-z.-]+")))
 val buildMetadataSuffix = buildMetadata?.let { "+$it" }.orEmpty()
 
 // Release channel is fixed at build time, never taken from downloaded metadata or user input.
-val updateRepository = providers.gradleProperty("eta.updateRepository").orElse("UHAN16/Eta").get()
+val updateProvider = providers.gradleProperty("eta.updateProvider").orElse("gitee").get()
+require(updateProvider in setOf("github", "gitee")) { "eta.updateProvider must be github or gitee" }
+val updateRepository = providers.gradleProperty("eta.updateRepository")
+    .orElse(if (updateProvider == "gitee") "a962327460/eta" else "UHAN16/Eta").get()
 require(updateRepository.matches(Regex("[A-Za-z0-9-]+/[A-Za-z0-9_.-]+")) &&
     updateRepository.substringAfter('/') !in setOf(".", "..")) {
-    "eta.updateRepository must be a GitHub owner/repository"
+    "eta.updateRepository must be an owner/repository"
 }
 
 android {
@@ -50,8 +53,9 @@ android {
         minSdk = 34
         targetSdk = 37
         // versionCode 规则：yyyyMMdd + 两位当日序号（01 起），发版时随 versionName 一起手动递增。
-        versionCode = 2026112701
-        versionName = "3.4.5"
+        versionCode = 2026112702
+        versionName = "3.4.6"
+        buildConfigField("String", "UPDATE_PROVIDER", "\"$updateProvider\"")
         buildConfigField("String", "UPDATE_REPOSITORY", "\"$updateRepository\"")
 
         ndk {

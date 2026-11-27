@@ -1,6 +1,12 @@
 # Current context
 Memory landing policy: preauthorized
 
+## Current continuation: Gitee release channel
+- Current branch: feature/gitee-update-source, based on published GitHub v3.4.5 / 59a72e5d. Read [the active Gitee task](tasks/gitee-update-source/active-task.md) first; the earlier sections below preserve previous stages.
+- User approved making a962327460/eta public and publishing there. Public Git transport now verifies the three mirrored GitHub branches and v3.4.5 tag; main is still ffd972d6. Do not merge custom features into main.
+- Candidate 3.4.6 / 2026112702 defaults to Gitee; build-only provider/repository overrides preserve GitHub support. Gitee requires exact attachment metadata plus one eta-update SHA-256 manifest. Do not embed access tokens, weaken signer checks, or fall back to another channel.
+- First migration from 3.4.5 requires manually installing the same-signature new APK (old builds still query GitHub). No handset action is authorized or tested here.
+
 - Upstream baseline and synced origin/main: ffd972d63e36a2500bf58ef38483a1015be54ed9 (78 commits beyond the original fork).
 - Feature branch: feature/voice-conversation-links. Do not merge feature behavior into main without the user deciding to do so.
 - Direct speech input comes from upstream. Extensions add local-only conversation link continuation and an explicit foreground roleplay voice loop.

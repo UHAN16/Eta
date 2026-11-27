@@ -105,6 +105,7 @@ internal fun rememberOnlineUpdate(context: Context): OnlineUpdateControls {
     val checkFailed = stringResource(R.string.ui_update_check_failed)
     val alreadyLatest = stringResource(R.string.ui_update_already_latest)
     val nonePublished = stringResource(R.string.update_channel_empty, BuildConfig.UPDATE_REPOSITORY)
+    val channel = "${if (BuildConfig.UPDATE_PROVIDER == "gitee") "Gitee" else "GitHub"}: ${BuildConfig.UPDATE_REPOSITORY}"
     fun check() {
         if (checking || download != null) return
         if (readyName != null) {
@@ -171,7 +172,7 @@ internal fun rememberOnlineUpdate(context: Context): OnlineUpdateControls {
             checking -> checkingText
             download != null -> stringResource(R.string.update_downloading, progress)
             readyName != null -> stringResource(R.string.update_ready)
-            else -> stringResource(R.string.update_channel, BuildConfig.UPDATE_REPOSITORY)
+            else -> stringResource(R.string.update_channel, channel)
         },
         checking = checking,
         onClick = ::check,

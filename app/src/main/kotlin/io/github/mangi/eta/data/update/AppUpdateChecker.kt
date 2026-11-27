@@ -13,21 +13,48 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import org.json.JSONArray
 import org.json.JSONObject
 
 internal data class AppLatestRelease(val version: String, val url: HttpUrl, val apk: UpdateAsset?)
-internal data class UpdateAsset(val url: HttpUrl, val size: Long, val sha256: String)
+internal data class UpdateAsset(val url: HttpUrl, val size: Long, val sha256: String, val attachmentId: Long? = null)
 
 internal object AppUpdateChecker {
     const val MAX_APK_BYTES = 128L * 1024 * 1024
     private const val MAX_RELEASE_METADATA_BYTES = 2L * 1024 * 1024
     private val stableTag = Regex("v[0-9]{1,9}(\\.[0-9]{1,9}){2}")
     private val digestPattern = Regex("sha256:([A-Fa-f0-9]{64})")
+    private val giteeManifest = Regex("(?m)^```eta-update\\r?\\n([^`]+)\\r?\\n```[ \\t]*$")
+    private val giteeManifestStart = Regex("(?m)^```eta-update[ \\t]*\\r?$")
+    private val sha256Pattern = Regex("[A-Fa-f0-9]{64}")
 
     suspend fun fetchLatest(): AppLatestRelease? {
+        val repository = BuildConfig.UPDATE_REPOSITORY
+        return when (BuildConfig.UPDATE_PROVIDER) {
+            "github" -> fetchJson("https://api.github.com/repos/$repository/releases/latest")
+                ?.let { parseRelease(it, repository) }
+            "gitee" -> {
+                val base = "https://gitee.com/api/v5/repos/$repository/releases"
+                val release = fetchJson("$base/latest") ?: return null
+                if (release.optBoolean("draft") || release.optBoolean("prerelease")) return null
+                if (!stableTag.matches(release.optString("tag_name"))) throw IOException("Invalid stable release tag")
+                val id = release.optLong("id", -1)
+                if (id <= 0) throw IOException("Invalid Gitee release ID")
+                // Gitee's release.assets lacks size/ID; only its attachment endpoint is authoritative.
+                val attachments = fetchMetadata("$base/$id/attach_files?per_page=100")
+                    ?.let(::JSONArray) ?: throw IOException("Missing Gitee attachment metadata")
+                parseGiteeRelease(release, attachments, repository)
+            }
+            else -> throw IOException("Unknown update source")
+        }
+    }
+
+    private suspend fun fetchJson(url: String): JSONObject? = fetchMetadata(url)?.let(::JSONObject)
+
+    private suspend fun fetchMetadata(url: String): String? {
         val request = Request.Builder()
-            .url("https://api.github.com/repos/${BuildConfig.UPDATE_REPOSITORY}/releases/latest")
-            .header("Accept", "application/vnd.github+json")
+            .url(url)
+            .header("Accept", "application/json")
             .header("User-Agent", "Eta-Update-Checker")
             .build()
         return updateHttp.newCall(request).readCancellable { response ->
@@ -35,8 +62,34 @@ internal object AppUpdateChecker {
             if (!response.isSuccessful) throw IOException("Release status: ${response.code}")
             val source = response.body.source()
             if (source.request(MAX_RELEASE_METADATA_BYTES + 1)) throw IOException("Oversized release metadata")
-            parseRelease(JSONObject(source.readUtf8()), BuildConfig.UPDATE_REPOSITORY)
+            source.readUtf8()
         }
+    }
+
+    internal fun parseGiteeRelease(json: JSONObject, attachments: JSONArray, repository: String): AppLatestRelease? {
+        if (json.optBoolean("draft") || json.optBoolean("prerelease")) return null
+        val tag = json.optString("tag_name")
+        if (!stableTag.matches(tag)) throw IOException("Invalid stable release tag")
+        val base = "https://gitee.com/$repository/releases"
+        val name = "Eta-$tag.apk"
+        val expected = "$base/download/$tag/$name".toHttpUrl()
+        val body = json.optString("body")
+        val manifests = giteeManifest.findAll(body).toList()
+        val manifest = manifests.singleOrNull()?.takeIf { giteeManifestStart.findAll(body).count() == 1 }
+            ?.let { runCatching { JSONObject(it.groupValues[1]) }.getOrNull() }
+        val matching = (0 until attachments.length()).mapNotNull { attachments.optJSONObject(it) }
+            .filter { it.optString("name") == name }
+        val asset = matching.singleOrNull()?.let { item ->
+            val size = item.optLong("size", -1)
+            val id = item.optLong("id", -1)
+            val digest = manifest?.optString("sha256")?.takeIf(sha256Pattern::matches)?.lowercase()
+            if (attachments.length() < 100 && manifest?.optInt("schema") == 1 &&
+                manifest.optString("name") == name && manifest.optLong("size", -1) == size &&
+                size in 1..MAX_APK_BYTES && id > 0 && digest != null &&
+                item.optString("browser_download_url").toHttpUrlOrNull() == expected
+            ) UpdateAsset(expected, size, digest, id) else null
+        }
+        return AppLatestRelease(tag.removePrefix("v"), "$base/tag/$tag".toHttpUrl(), asset)
     }
 
     internal fun parseRelease(json: JSONObject, repository: String): AppLatestRelease? {
