@@ -31,3 +31,10 @@ Memory landing policy: preauthorized
 - Size 9063264; SHA-256 308cd368a67a59530a8aba0be73d1e3524e8f8fd945a1dc330a20f962a149389.
 - v3.4.6 anonymous full APK download was verified after accounting for lowercase CDN filenames. Its prerelease is explicitly retired and must not be promoted.
 - Pending: push/tag v3.4.7, stage its APK, verify anonymous API plus downloaded bytes, then promote to stable.
+
+## Handoff status 2026-11-27 19:00 Asia/Shanghai
+- v3.4.7 tag points to 6261f73f514b17fc0bcf5917719db0d84342a6fb on both GitHub and Gitee. Both feature branches match; both main refs remain ffd972d63e36a2500bf58ef38483a1015be54ed9. No force pushes or rewritten tags.
+- Gitee prerelease 1376178, APK attachment 3856801. Anonymous full download traversed the exact attachment route and lowercase foruda CDN name; 9063264 bytes / SHA-256 308cd368a67a59530a8aba0be73d1e3524e8f8fd945a1dc330a20f962a149389 verified. APK is signed with the established v3.4.5 identity.
+- NOT stable yet: unauthenticated Gitee API still returns HTTP 403 (Rate Limit Exceeded) from this network, including on new release metadata routes. Authenticated metadata and public Git/APK transport work. Do not mistake this for missing repo permission or claim that in-app release discovery has been verified.
+- Source and channel migration are complete; remaining step is anonymous metadata/latest validation and stable promotion. Re-run scripts/publish-gitee-release.py for v3.4.7 after the rate limit clears; it resumes the existing prerelease without duplicating uploads. Never promote the retired v3.4.6 candidate, change main, rewrite tags, embed an access token or relax integrity checks to work around the API limit.
+- Local deliverables are in the continuing chat's outputs directory: Eta-v3.4.7.apk, its SHA-256 file and verification JSON. No phone was modified. No future automation or background publisher is running.

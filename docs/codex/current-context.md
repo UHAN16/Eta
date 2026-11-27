@@ -6,6 +6,7 @@ Memory landing policy: preauthorized
 - User approved making a962327460/eta public and publishing there. Public Git transport now verifies the three mirrored GitHub branches and v3.4.5 tag; main is still ffd972d6. Do not merge custom features into main.
 - Candidate 3.4.7 / 2026112703 defaults to Gitee; build-only provider/repository overrides preserve GitHub support. Gitee requires exact attachment metadata plus one eta-update SHA-256 manifest. Do not embed access tokens, weaken signer checks, or fall back to another channel.
 - First migration from 3.4.5 requires manually installing the same-signature new APK (old builds still query GitHub). No handset action is authorized or tested here.
+- Final v3.4.7 build/lint and 209 targeted tests passed. Tag 6261f73f is mirrored; Gitee prerelease 1376178 has a verified anonymous APK download. Stable promotion remains pending because anonymous metadata API returns rate-limit HTTP 403 from this network. Resume via the Gitee task; do not promote retired v3.4.6 or weaken verification.
 
 - Upstream baseline and synced origin/main: ffd972d63e36a2500bf58ef38483a1015be54ed9 (78 commits beyond the original fork).
 - Feature branch: feature/voice-conversation-links. Do not merge feature behavior into main without the user deciding to do so.
