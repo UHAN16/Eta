@@ -8,3 +8,4 @@ No secrets, private keys, API keys, or real chat content are stored here.
 - [Online upgrade task](tasks/online-upgrade/active-task.md)
 - [Voice call and auto-read](tasks/voice-call/active-task.md)
 - [Android on-device voice](tasks/android-offline-voice/active-task.md)
+- [First public fork release](tasks/first-fork-release/active-task.md)
