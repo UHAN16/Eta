@@ -129,7 +129,8 @@ internal fun allowedAssetRedirect(url: HttpUrl, asset: UpdateAsset? = null): Boo
     val cdnSegments = url.pathSegments
     return (url.host == "gitee.com" && url.encodedPath == attachmentPath && url.query == null) ||
         (url.host == "foruda.gitee.com" && cdnSegments.size == 3 && cdnSegments[0] == "attach_file" &&
-            cdnSegments[1].all(Char::isDigit) && cdnSegments[1].isNotEmpty() && cdnSegments[2] == segments.last())
+            cdnSegments[1].all(Char::isDigit) && cdnSegments[1].isNotEmpty() &&
+            cdnSegments[2] in setOf(segments.last(), segments.last().lowercase()))
 }
 
 internal fun verifyCopy(input: InputStream, output: OutputStream, asset: UpdateAsset, onProgress: (Int) -> Unit) {

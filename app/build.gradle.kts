@@ -53,8 +53,8 @@ android {
         minSdk = 34
         targetSdk = 37
         // versionCode 规则：yyyyMMdd + 两位当日序号（01 起），发版时随 versionName 一起手动递增。
-        versionCode = 2026112702
-        versionName = "3.4.6"
+        versionCode = 2026112703
+        versionName = "3.4.7"
         buildConfigField("String", "UPDATE_PROVIDER", "\"$updateProvider\"")
         buildConfigField("String", "UPDATE_REPOSITORY", "\"$updateRepository\"")
 

@@ -77,10 +77,12 @@ def main():
         raise RuntimeError("Remote tag differs from the validated local tag")
     route = f"repos/{args.repository}/releases"
     response = session.get(base + "/releases/tags/" + args.tag, timeout=30, allow_redirects=False)
-    if response.status_code == 404:
+    existing = response.json() if response.status_code == 200 else None
+    # Gitee also returns HTTP 200 + JSON null for a tag with no Release.
+    if response.status_code == 404 or (response.status_code == 200 and existing is None):
         release = call("POST", route, 201, data={"tag_name": args.tag, "name": f"Eta {args.tag}", "body": body, "prerelease": "true", "target_commitish": commit})
-    elif response.status_code == 200:
-        release = response.json()
+    elif response.status_code == 200 and isinstance(existing, dict):
+        release = existing
         if release.get("body") != body:
             raise RuntimeError("Existing release notes/manifest differ; no overwrite")
     else:
@@ -120,7 +122,7 @@ def main():
             next_url = requests.compat.urljoin(url, response.headers.get("Location", ""))
             response.close()
             parsed = urlsplit(next_url)
-            cdn = re.fullmatch(r"/attach_file/[0-9]+/" + re.escape(name), parsed.path)
+            cdn = re.fullmatch(r"/attach_file/[0-9]+(?:/" + re.escape(name) + r"|/" + re.escape(name.lower()) + r")", parsed.path)
             if parsed.scheme != "https" or parsed.port not in (None, 443) or parsed.username or parsed.password or parsed.fragment or not (
                 (parsed.hostname == "gitee.com" and parsed.path == attachment_path and not parsed.query) or
                 (parsed.hostname == "foruda.gitee.com" and cdn)

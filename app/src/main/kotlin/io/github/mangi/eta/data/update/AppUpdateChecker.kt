@@ -35,7 +35,7 @@ internal object AppUpdateChecker {
                 ?.let { parseRelease(it, repository) }
             "gitee" -> {
                 val base = "https://gitee.com/api/v5/repos/$repository/releases"
-                val release = fetchJson("$base/latest") ?: return null
+                val release = fetchMetadata("$base/latest")?.let(::parseGiteeLatestMetadata) ?: return null
                 if (release.optBoolean("draft") || release.optBoolean("prerelease")) return null
                 if (!stableTag.matches(release.optString("tag_name"))) throw IOException("Invalid stable release tag")
                 val id = release.optLong("id", -1)
@@ -50,6 +50,10 @@ internal object AppUpdateChecker {
     }
 
     private suspend fun fetchJson(url: String): JSONObject? = fetchMetadata(url)?.let(::JSONObject)
+
+    // Gitee returns 200 + JSON null, not just 404, when no matching Release exists.
+    internal fun parseGiteeLatestMetadata(source: String): JSONObject? =
+        source.takeUnless { it.trim() == "null" }?.let(::JSONObject)
 
     private suspend fun fetchMetadata(url: String): String? {
         val request = Request.Builder()

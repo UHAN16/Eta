@@ -4,6 +4,7 @@ import java.io.IOException
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONException
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -21,6 +22,13 @@ class GiteeUpdateTest {
     private fun parse(json: JSONObject = release(), vararg attachments: JSONObject) =
         AppUpdateChecker.parseGiteeRelease(json, JSONArray(attachments.toList()), repository)
     private fun asset() = UpdateAsset(url.toHttpUrl(), 42, sha, 456)
+
+    @Test fun giteeEmptyReleaseResponseIsJsonNullNotAnUpdate() {
+        assertNull(AppUpdateChecker.parseGiteeLatestMetadata("null"))
+        assertNull(AppUpdateChecker.parseGiteeLatestMetadata(" \nnull\n"))
+        assertEquals("v3.4.6", AppUpdateChecker.parseGiteeLatestMetadata(release().toString())?.optString("tag_name"))
+        assertThrows(JSONException::class.java) { AppUpdateChecker.parseGiteeLatestMetadata("[]") }
+    }
 
     @Test fun selectsExactGiteeAttachmentWithManifestAndConstructedPage() {
         val result = parse(release(), attachment())!!
@@ -92,13 +100,16 @@ class GiteeUpdateTest {
     @Test fun allowsOnlyExactGiteeAttachmentHopAndAttachmentCdn() {
         assertTrue(allowedAssetRedirect("https://gitee.com/$repository/attach_files/456/download/Eta-v3.4.6.apk".toHttpUrl(), asset()))
         assertTrue(allowedAssetRedirect("https://foruda.gitee.com/attach_file/123/Eta-v3.4.6.apk?token=opaque".toHttpUrl(), asset()))
+        assertTrue(allowedAssetRedirect("https://foruda.gitee.com/attach_file/123/eta-v3.4.6.apk?token=opaque".toHttpUrl(), asset()))
         for (bad in listOf("https://gitee.com/other/eta/attach_files/456/download/Eta-v3.4.6.apk",
             "https://gitee.com/$repository/attach_files/999/download/Eta-v3.4.6.apk",
             "https://gitee.com/$repository/attach_files/456/download/Eta-v3.4.6.apk?token=secret",
             "https://foruda.gitee.com/other/file", "https://foruda.gitee.com.evil/attach_file/file",
             "http://foruda.gitee.com/attach_file/file", "https://foruda.gitee.com:444/attach_file/file",
             "https://user:password@foruda.gitee.com/attach_file/file", "https://127.0.0.1/attach_file/file",
-            "https://objects.githubusercontent.com/file", "https://foruda.gitee.com/attach_file/file#fragment")) {
+            "https://objects.githubusercontent.com/file", "https://foruda.gitee.com/attach_file/file#fragment",
+            "https://foruda.gitee.com/attach_file/123/ETA-v3.4.6.apk",
+            "https://foruda.gitee.com/attach_file/123/eta-v3.4.5.apk")) {
             assertFalse(bad, allowedAssetRedirect(bad.toHttpUrl(), asset()))
         }
     }
